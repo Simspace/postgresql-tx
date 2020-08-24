@@ -2,26 +2,26 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Database.PostgreSQL.Tx.MonadLogger where
 
-import Control.Monad.Logger (LoggingT(LoggingT, runLoggingT), Loc, LogLevel, LogSource, LogStr, mapLoggingT)
-import Database.PostgreSQL.Tx (TxM, Tx(TxEnv, tx))
-import Database.PostgreSQL.Tx.Unsafe (UnsafeTx(unsafeIOTx), UnsafeUnliftTx(unsafeWithRunInIOTx))
+import Control.Monad.Logger (MonadLogger(monadLoggerLog), Loc, LogLevel, LogSource, LogStr, toLogStr)
+import Data.Proxy (Proxy(Proxy))
+import Database.PostgreSQL.Tx (TxEnv(withTxEnv), TxM)
+import Database.PostgreSQL.Tx.Unsafe (unsafeRunIOInTxM)
 
+-- | A logging function compatible with @monad-logger@.
+--
+-- @since 0.1.0.0
 type Logger = Loc -> LogSource -> LogLevel -> LogStr -> IO ()
 
-instance Tx (LoggingT TxM) where
-  type TxEnv (LoggingT TxM) = Logger
-  tx = flip runLoggingT
-
-instance (UnsafeTx io t) => UnsafeTx (LoggingT io) (LoggingT t) where
-  unsafeIOTx = mapLoggingT unsafeIOTx
-
-instance (UnsafeUnliftTx t) => UnsafeUnliftTx (LoggingT t) where
-  unsafeWithRunInIOTx inner =
-    LoggingT \logger ->
-      unsafeWithRunInIOTx \run ->
-        inner (run . flip runLoggingT logger)
+-- | Orphan instance for running @monad-logger@ functions in 'TxM'.
+--
+-- @since 0.2.0.0
+instance (TxEnv r Logger) => MonadLogger (TxM r) where
+  monadLoggerLog loc src lvl msg = do
+    withTxEnv (Proxy @Logger) \logger -> do
+      unsafeRunIOInTxM $ logger loc src lvl (toLogStr msg)

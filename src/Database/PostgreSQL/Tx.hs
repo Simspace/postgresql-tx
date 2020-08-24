@@ -5,7 +5,13 @@ module Database.PostgreSQL.Tx
 
     -- ** Transaction monad
     TxM
-  , Tx(TxEnv, tx)
+
+    -- ** Transaction environment
+  , TxEnv(withTxEnv)
+  , TxEnvs
+  , withTxEnv'Selecting
+  , withTxEnv'Resource
+  , withTxEnv'Singleton
 
     -- ** Exceptions
   , throwExceptionTx
@@ -13,7 +19,6 @@ module Database.PostgreSQL.Tx
   ) where
 
 import Control.Exception (Exception, catch, throwIO)
-import Control.Monad.IO.Class (MonadIO(liftIO))
 import Database.PostgreSQL.Tx.Internal
 
 -- | Throw an exception.
@@ -22,8 +27,8 @@ import Database.PostgreSQL.Tx.Internal
 -- implementation monad from the various @postgresql-tx-*@ packages.
 --
 -- @since 0.2.0.0
-throwExceptionTx :: (UnsafeTx io t, Exception e) => e -> t a
-throwExceptionTx ex = unsafeIOTx $ liftIO $ throwIO ex
+throwExceptionTx :: (Exception e) => e -> TxM r a
+throwExceptionTx = unsafeRunIOInTxM . throwIO
 
 -- | Catch an exception and map it to another exception type before rethrowing.
 --
@@ -32,12 +37,12 @@ throwExceptionTx ex = unsafeIOTx $ liftIO $ throwIO ex
 --
 -- @since 0.2.0.0
 mapExceptionTx
-  :: (UnsafeUnliftTx t, Exception e, Exception e')
+  :: (Exception e, Exception e')
   => (e -> Maybe e')
-  -> t a
-  -> t a
+  -> TxM r a
+  -> TxM r a
 mapExceptionTx mapper action = do
-  unsafeWithRunInIOTx \run -> do
+  unsafeWithRunInIOTxM \run -> do
     catch (run action) \ex -> do
       case mapper ex of
         Nothing -> throwIO ex

@@ -9,6 +9,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 module Database.PostgreSQL.Tx.Internal
   ( -- * Disclaimer
@@ -19,27 +20,45 @@ module Database.PostgreSQL.Tx.Internal
   ) where
 
 import Control.Monad.IO.Class (MonadIO(liftIO))
-import Control.Monad.Trans.Reader (ReaderT(ReaderT, runReaderT), mapReaderT)
+import Control.Monad.Trans.Reader (ReaderT(ReaderT, runReaderT), ask)
+import Data.Kind (Constraint)
 import GHC.TypeLits (ErrorMessage(Text), TypeError)
 
 -- | The transaction monad. An implementation monad for a specific database
 -- library can be converted to 'TxM' via the 'tx' method.
 --
--- @since 0.1.0.0
-newtype TxM a = UnsafeTxM
-  { -- | Convert a 'TxM' action to raw 'IO'. This is provided only to give
+-- @since 0.2.0.0
+newtype TxM r a = UnsafeTxM
+  { -- | Convert a 'TxM' action to raw 'ReaderT' over 'IO'. This is provided only to give
     -- adaptor libraries access to the underlying 'IO' that 'TxM' wraps.
     --
-    -- @since 0.1.0.0
-    unsafeRunTxM :: IO a
+    -- @since 0.2.0.0
+    unsafeUnTxM :: ReaderT r IO a
   } deriving newtype (Functor, Applicative, Monad)
 
 -- | Run an 'IO' action in 'TxM'. Use this function with care - arbitrary 'IO'
 -- should only be run within a transaction when truly necessary.
 --
--- @since 0.1.0.0
-unsafeRunIOInTxM :: IO a -> TxM a
-unsafeRunIOInTxM = UnsafeTxM
+-- @since 0.2.0.0
+unsafeRunIOInTxM :: IO a -> TxM r a
+unsafeRunIOInTxM x = UnsafeTxM $ ReaderT \_ -> x
+
+-- | Construct a 'TxM' using a reader function. Use this function with care -
+-- arbitrary 'IO' should only be run within a transaction when truly necessary.
+--
+-- @since 0.2.0.0
+unsafeMkTxM :: (r -> IO a) -> TxM r a
+unsafeMkTxM = UnsafeTxM . ReaderT
+
+-- | Construct a 'TxM' using a reader function. Use this function with care -
+-- arbitrary 'IO' should only be run within a transaction when truly necessary.
+--
+-- @since 0.2.0.0
+unsafeMksTxM :: (TxEnv r a) => proxy a -> (a -> IO b) -> TxM r b
+unsafeMksTxM proxy f =
+  UnsafeTxM $ ReaderT \r -> unsafeRunTxM r do
+    withTxEnv proxy \a -> do
+      unsafeRunIOInTxM $ f a
 
 -- | The 'TxM' monad discourages performing arbitrary 'IO' within a
 -- transaction, so this instance generates a type error when client code tries
@@ -49,94 +68,108 @@ unsafeRunIOInTxM = UnsafeTxM
 instance
   ( TypeError
       ('Text "MonadIO is banned in TxM; use 'unsafeRunIOInTxM' if you are sure this is safe IO")
-  ) => MonadIO TxM
+  ) => MonadIO (TxM r)
   where
   liftIO = undefined
-
--- | Type class for converting a specific database library implementation monad
--- to 'TxM', given a runtime environment.
---
--- @since 0.1.0.0
-class Tx (f :: * -> *) where
-  -- | The runtime environment needed to convert a specific database library
-  -- implementation monad to 'TxM'.
-  --
-  -- @since 0.1.0.0
-  type TxEnv f :: *
-  -- | Converts a specific database library implementation monad to 'TxM'.
-  --
-  -- @since 0.1.0.0
-  tx :: TxEnv f -> f a -> TxM a
-
-instance Tx (ReaderT r TxM) where
-  type TxEnv (ReaderT r TxM) = r
-  tx = flip runReaderT
-
--- | Promote an unsafe @io@ action to a safe @t@ transaction (will be some form
--- of 'TxM').
---
--- @since 0.1.0.0
-class (MonadIO io, Monad t) => UnsafeTx (io :: * -> *) (t :: * -> *) | t -> io where
-  -- | Converts an @io@ action to a @t@, which will be some form of 'TxM'. Use
-  -- this function with care - arbitrary 'IO' should only be run within a
-  -- transaction when truly necessary.
-  --
-  -- This function may be used within 'TxM' or a specific database library
-  -- implementation monad from the various @postgresql-tx-*@ packages.
-  --
-  -- @since 0.1.0.0
-  unsafeIOTx :: io a -> t a
-
-instance UnsafeTx IO TxM where
-  unsafeIOTx = unsafeRunIOInTxM
-
-instance (UnsafeTx io t) => UnsafeTx (ReaderT r io) (ReaderT r t) where
-  unsafeIOTx = mapReaderT unsafeIOTx
-
--- | A variant of 'liftIO' to promote 'IO' directly to some variant of 'TxM'.
---
--- @since 0.2.0.0
-unsafeLiftIOTx :: (UnsafeTx io t, MonadIO io) => IO a -> t a
-unsafeLiftIOTx = unsafeIOTx . liftIO
 
 -- | Run a specific database library implementation monad in 'IO', given that
 -- monad's runtime environment. Use of this function outside of test suites
 -- should be rare.
 --
 -- @since 0.2.0.0
-unsafeRunTxInIO :: (Tx f) => TxEnv f -> f a -> IO a
-unsafeRunTxInIO env = unsafeRunTxM . tx env
+unsafeRunTxM :: r -> TxM r a -> IO a
+unsafeRunTxM r x = runReaderT (unsafeUnTxM x) r
 
--- | Promotes an unsafe 'io' function to some 'ReaderT' over 'TxM'.
+-- | Run a 'TxM' action in 'IO' via the provided runner function. Use this
+-- function with care - arbitrary 'IO' should only be run within a transaction
+-- when truly necessary.
 --
--- @since 0.1.0.0
-unsafeReaderIOTx
-  :: (UnsafeTx (ReaderT r io) (ReaderT r t))
-  => (r -> io a) -> ReaderT r t a
-unsafeReaderIOTx = unsafeIOTx . ReaderT
-
--- | Support running a @t@ action in 'IO' via the provided runner function.
+-- This function may be used within 'TxM' or a specific database library
+-- implementation monad from the various @postgresql-tx-*@ packages.
 --
 -- @since 0.2.0.0
-class Monad t => UnsafeUnliftTx (t :: * -> *) where
-  -- | Run a @t@ action in 'IO' via the provided runner function. Use this
-  -- function with care - arbitrary 'IO' should only be run within a transaction
-  -- when truly necessary.
-  --
-  -- This function may be used within 'TxM' or a specific database library
-  -- implementation monad from the various @postgresql-tx-*@ packages.
+unsafeWithRunInIOTxM :: ((forall a. TxM r a -> IO a) -> IO b) -> TxM r b
+unsafeWithRunInIOTxM inner =
+  UnsafeTxM $ ReaderT \r -> inner (unsafeRunTxM r)
+
+-- | A type class for specifying how to acquire an environment value
+-- to be used for running an implementation of a database library.
+-- For example, your database library will likely require some sort of
+-- connection value to discharge its effects; in this case, you'd want to
+-- define an instance of @TxEnv MyDBEnv Connection@ and use @TxM MyDBEnv@
+-- as your monad for executing transactions.
+--
+-- When implementing instances for this type class, you are encouraged
+-- to use one of the supplied helper implementations: 'withTxEnv'Selecting',
+-- 'withTxEnv'Resource', 'withTxEnv'Singleton'.
+--
+-- Note that implementations should take care and ensure that multiple
+-- instances are compatible with one another. For example, let's say you
+-- have instances for both @TxEnv E PgSimple.Connection@ and
+-- @TxEnv E LibPQ.Connection@; if both of these implementations are grabbing
+-- connections from a pool, you will end up with each of those database
+-- libraries using different connections, and thus, would be running in
+-- separate transactions!
+--
+-- @since 0.2.0.0
+class TxEnv r a where
+
+  -- | Acquire a value @a@ via the reader environment @r@ which assists in
+  -- running a 'TxM' in a transaction.
   --
   -- @since 0.2.0.0
-  unsafeWithRunInIOTx :: ((forall a. t a -> IO a) -> IO b) -> t b
+  withTxEnv :: proxy a -> (a -> TxM r x) -> TxM r x
 
-instance UnsafeUnliftTx TxM where
-  unsafeWithRunInIOTx inner = unsafeRunIOInTxM $ inner unsafeRunTxM
+-- | Derive an implementation of 'withTxEnv' using a function, most likely
+-- a field selector.
+--
+-- @since 0.2.0.0
+withTxEnv'Selecting
+  :: (TxEnv r a)
+  => (r -> a)
+  -> proxy a -> (a -> TxM r x) -> TxM r x
+withTxEnv'Selecting selector _ f = do
+  r <- UnsafeTxM ask
+  let a = selector r
+  f a
 
-instance (UnsafeUnliftTx t) => UnsafeUnliftTx (ReaderT r t) where
-  unsafeWithRunInIOTx inner =
-    ReaderT \r ->
-      unsafeWithRunInIOTx \run ->
-        inner (run . flip runReaderT r)
+-- | Derive an implementation of 'withTxEnv' using a resource acquiring
+-- function.
+--
+-- @since 0.2.0.0
+withTxEnv'Resource
+  :: (TxEnv r a)
+  => (r -> (a -> IO x) -> IO x)
+  -> proxy a -> (a -> TxM r x) -> TxM r x
+withTxEnv'Resource acquire _ f = do
+  r <- UnsafeTxM ask
+  unsafeRunIOInTxM do
+    acquire r \a -> unsafeRunTxM r (f a)
+
+-- | Derive an implementation of 'withTxEnv' using a singleton value.
+--
+-- @since 0.2.0.0
+withTxEnv'Singleton
+  :: a
+  -> proxy a -> (a -> TxM r x) -> TxM r x
+withTxEnv'Singleton a _ f = f a
+
+-- | Analogous to 'withTxEnv' but can be run in 'IO' instead of 'TxM'.
+--
+-- @since 0.2.0.0
+unsafeWithTxEnvIO :: (TxEnv r a) => proxy a -> r -> (a -> IO x) -> IO x
+unsafeWithTxEnvIO proxy r f = do
+  unsafeRunTxM r do
+    withTxEnv proxy \a ->
+      unsafeRunIOInTxM $ f a
+
+-- | Type family which allows for specifying several 'TxEnv' constraints as
+-- a type-level list.
+--
+-- @since 0.2.0.0
+type family TxEnvs r (xs :: [*]) :: Constraint where
+  TxEnvs r '[] = ()
+  TxEnvs r (x ': xs) = (TxEnv r x, TxEnvs r xs)
 
 -- $disclaimer
 --

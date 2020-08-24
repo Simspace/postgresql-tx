@@ -1,10 +1,12 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RankNTypes #-}
 module Example.PgSimple.Internal.DB where
 
-import Database.PostgreSQL.Tx (TxM)
+import Database.PostgreSQL.Tx.Simple (PgSimpleM)
 
 data Handle = Handle
-  { insertMessage :: String -> TxM Int
-  , fetchMessage :: Int -> TxM (Maybe String)
+  { insertMessage :: String -> PgSimpleM Int
+  , fetchMessage :: Int -> PgSimpleM (Maybe String)
 
   , close :: IO ()
   }

@@ -1,6 +1,5 @@
 module Example.PgSimple
   ( DB.Handle(..)
-  , Queries.Dependencies(..)
   , Queries.new
   , Queries.withHandle
   ) where

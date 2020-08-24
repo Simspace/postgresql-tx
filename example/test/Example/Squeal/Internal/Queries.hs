@@ -1,44 +1,40 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeApplications #-}
 module Example.Squeal.Internal.Queries where
 
 import Data.Int (Int32)
-import Database.PostgreSQL.Tx (TxM, tx)
 import Database.PostgreSQL.Tx.Squeal
 import Example.Squeal.Internal.Schema (Schemas)
 import qualified Control.Exception as Exception
 import qualified Example.Squeal.Internal.DB as DB
 
-new :: Dependencies -> IO DB.Handle
-new deps =
+new :: IO DB.Handle
+new =
   pure DB.Handle
-    { DB.insertThreeMessages = insertThreeMessages deps
-    , DB.fetchThreeMessages = fetchThreeMessages deps
+    { DB.insertThreeMessages
+    , DB.fetchThreeMessages
 
     , DB.close = mempty
     }
 
-withHandle :: Dependencies -> (DB.Handle -> IO a) -> IO a
-withHandle deps = Exception.bracket (new deps) DB.close
-
-newtype Dependencies = Dependencies { conn :: Connection }
-
-run :: Dependencies -> SquealM Schemas Schemas a -> TxM a
-run deps = tx (conn deps)
+withHandle :: (DB.Handle -> IO a) -> IO a
+withHandle = Exception.bracket new DB.close
 
 insertThreeMessages
-  :: Dependencies
-  -> String -> String -> String -> TxM (Int, Int, Int)
-insertThreeMessages deps s1 s2 s3 = run deps do
+  :: String -> String -> String -> DB.M (Int, Int, Int)
+insertThreeMessages s1 s2 s3 = do
   go >>= \case
     [k1, k2, k3] -> pure (k1, k2, k3)
     rows -> error $ "Expected exactly 3 rows, got " <> show (length rows)
   where
-  go :: SquealM Schemas Schemas [Int]
-  go = executeParams stmt (s1, s2, s3) >>= getRows
+  go :: DB.M [Int]
+  go = executeParams stmt (s1, s2, s3) >>= getRows @Schemas
 
   stmt :: Statement Schemas (String, String, String) Int
   stmt = Manipulation genericParams rowDecoder insertIntoFoo
@@ -56,9 +52,8 @@ insertThreeMessages deps s1 s2 s3 = run deps do
       (Returning_ #id)
 
 fetchThreeMessages
-  :: Dependencies
-  -> Int -> Int -> Int -> TxM (Maybe String, Maybe String, Maybe String)
-fetchThreeMessages deps k1 k2 k3 = run deps do
+  :: Int -> Int -> Int -> DB.M (Maybe String, Maybe String, Maybe String)
+fetchThreeMessages k1 k2 k3 = do
   rows <- go
   pure
     ( lookup k1 rows
@@ -66,8 +61,8 @@ fetchThreeMessages deps k1 k2 k3 = run deps do
     , lookup k3 rows
     )
   where
-  go :: SquealM Schemas Schemas [(Int, String)]
-  go = executeParams stmt params >>= getRows
+  go :: DB.M [(Int, String)]
+  go = executeParams stmt params >>= getRows @Schemas
 
   params :: (Int32, Int32, Int32)
   params =

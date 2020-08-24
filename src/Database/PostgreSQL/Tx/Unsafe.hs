@@ -4,14 +4,16 @@ module Database.PostgreSQL.Tx.Unsafe
 
     -- ** Operations
     unsafeRunIOInTxM
-  , UnsafeTx(unsafeIOTx)
-  , unsafeLiftIOTx
-  , unsafeReaderIOTx
-  , UnsafeUnliftTx(unsafeWithRunInIOTx)
+  , unsafeWithRunInIOTxM
 
     -- ** For adaptor libraries
+  , unsafeUnTxM
   , unsafeRunTxM
-  , unsafeRunTxInIO
+
+  , unsafeMkTxM
+  , unsafeMksTxM
+
+  , unsafeWithTxEnvIO
   ) where
 
 import Database.PostgreSQL.Tx.Internal
