@@ -23,23 +23,23 @@ import qualified Squeal.PostgreSQL as Squeal
 -- | Runtime environment needed to run @squeal-postgresql@ via @postgresql-tx@.
 --
 -- @since 0.2.0.0
-type SquealEnv (db0 :: Squeal.SchemasType) (db1 :: Squeal.SchemasType) r =
-  (TxEnvs r '[SquealSchemas db0 db1, LibPQ.Connection]) :: Constraint
+type SquealEnv (db :: Squeal.SchemasType) r =
+  (TxEnvs r '[SquealSchemas db, LibPQ.Connection]) :: Constraint
 
 -- | Monad type alias for running @squeal-postgresql@ via @postgresql-tx@.
 --
 -- @since 0.2.0.0
-type SquealM db a = forall r. (SquealEnv db db r) => TxM r a
+type SquealM db a = forall r. (SquealEnv db r) => TxM r a
 
 -- | Used in the 'SquealEnv' to specify the applicable schemas in which
 -- a 'TxM' can be run.
 --
 -- @since 0.2.0.0
-data SquealSchemas (db0 :: Squeal.SchemasType) (db1 :: Squeal.SchemasType) =
+data SquealSchemas (db :: Squeal.SchemasType) =
   SquealSchemas
 
 unsafeSquealIOTxM
-  :: forall db r a. (SquealEnv db db r)
+  :: forall db r a. (SquealEnv db r)
   => PQ db db IO a -> TxM r a
 unsafeSquealIOTxM (Squeal.PQ f) = do
   withTxEnv (Proxy @LibPQ.Connection) \conn ->
@@ -48,25 +48,25 @@ unsafeSquealIOTxM (Squeal.PQ f) = do
       pure a
 
 unsafeSquealIOTx1
-  :: forall db r x1 a. (SquealEnv db db r)
+  :: forall db r x1 a. (SquealEnv db r)
   => (x1 -> PQ db db IO a)
   -> x1 -> TxM r a
 unsafeSquealIOTx1 f x1 = unsafeSquealIOTxM $ f x1
 
 unsafeSquealIOTx2
-  :: forall db r x1 x2 a. (SquealEnv db db r)
+  :: forall db r x1 x2 a. (SquealEnv db r)
   => (x1 -> x2 -> PQ db db IO a)
   -> x1 -> x2 -> TxM r a
 unsafeSquealIOTx2 f x1 x2 = unsafeSquealIOTxM $ f x1 x2
 
 unsafeSquealIOTx3
-  :: forall db r x1 x2 x3 a. (SquealEnv db db r)
+  :: forall db r x1 x2 x3 a. (SquealEnv db r)
   => (x1 -> x2 -> x3 -> PQ db db IO a)
   -> x1 -> x2 -> x3 -> TxM r a
 unsafeSquealIOTx3 f x1 x2 x3 = unsafeSquealIOTxM $ f x1 x2 x3
 
 unsafeRunSquealTransaction
-  :: forall db r a. (SquealEnv db db r)
+  :: forall db r a. (SquealEnv db r)
   => (PQ db db IO a -> PQ db db IO a)
   -> r
   -> TxM r a

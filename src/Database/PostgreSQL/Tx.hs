@@ -23,17 +23,11 @@ import Database.PostgreSQL.Tx.Internal
 
 -- | Throw an exception.
 --
--- This function may be used within 'TxM' or a specific database library
--- implementation monad from the various @postgresql-tx-*@ packages.
---
 -- @since 0.2.0.0
 throwExceptionTx :: (Exception e) => e -> TxM r a
 throwExceptionTx = unsafeRunIOInTxM . throwIO
 
 -- | Catch an exception and map it to another exception type before rethrowing.
---
--- This function may be used within 'TxM' or a specific database library
--- implementation monad from the various @postgresql-tx-*@ packages.
 --
 -- @since 0.2.0.0
 mapExceptionTx

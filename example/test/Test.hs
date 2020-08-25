@@ -74,8 +74,8 @@ instance TxEnv DBEnv LibPQ.Connection where
 instance TxEnv DBEnv Logger where
   withTxEnv = withTxEnv'Selecting dbLogger
 
-instance (s ~ Example.Squeal.Schemas) => TxEnv DBEnv (SquealSchemas s s) where
-  withTxEnv = withTxEnv'Singleton (SquealSchemas @s @s)
+instance (s ~ Example.Squeal.Schemas) => TxEnv DBEnv (SquealSchemas s) where
+  withTxEnv = withTxEnv'Singleton (SquealSchemas @s)
 
 demo
   :: Example.PgSimple.Handle

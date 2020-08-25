@@ -24,8 +24,12 @@ import Control.Monad.Trans.Reader (ReaderT(ReaderT, runReaderT), ask)
 import Data.Kind (Constraint)
 import GHC.TypeLits (ErrorMessage(Text), TypeError)
 
--- | The transaction monad. An implementation monad for a specific database
--- library can be converted to 'TxM' via the 'tx' method.
+-- | The transaction monad. Unifies all database integrations, regardless of
+-- library, into a single monad. The @r@ type parameter represents the reader
+-- environment needed for applicable database libraries. For example,
+-- @postgresql-simple@ needs a @Connection@ to run its functions, so
+-- its interface will require that we can obtain a @Connection@ from the @r@
+-- using the 'TxEnv' type class.
 --
 -- @since 0.2.0.0
 newtype TxM r a = UnsafeTxM
@@ -41,7 +45,7 @@ newtype TxM r a = UnsafeTxM
 --
 -- @since 0.2.0.0
 unsafeRunIOInTxM :: IO a -> TxM r a
-unsafeRunIOInTxM x = UnsafeTxM $ ReaderT \_ -> x
+unsafeRunIOInTxM = UnsafeTxM . liftIO
 
 -- | Construct a 'TxM' using a reader function. Use this function with care -
 -- arbitrary 'IO' should only be run within a transaction when truly necessary.
@@ -50,13 +54,15 @@ unsafeRunIOInTxM x = UnsafeTxM $ ReaderT \_ -> x
 unsafeMkTxM :: (r -> IO a) -> TxM r a
 unsafeMkTxM = UnsafeTxM . ReaderT
 
--- | Construct a 'TxM' using a reader function. Use this function with care -
--- arbitrary 'IO' should only be run within a transaction when truly necessary.
+-- | Similar to 'unsafeMkTxM' but allows for constructing a 'TxM' with a
+-- reader function using a specific value from the environment.
+-- Use this function with care - arbitrary 'IO' should only be run
+-- within a transaction when truly necessary.
 --
 -- @since 0.2.0.0
 unsafeMksTxM :: (TxEnv r a) => proxy a -> (a -> IO b) -> TxM r b
 unsafeMksTxM proxy f =
-  UnsafeTxM $ ReaderT \r -> unsafeRunTxM r do
+  unsafeMkTxM \r -> unsafeRunTxM r do
     withTxEnv proxy \a -> do
       unsafeRunIOInTxM $ f a
 
@@ -72,9 +78,8 @@ instance
   where
   liftIO = undefined
 
--- | Run a specific database library implementation monad in 'IO', given that
--- monad's runtime environment. Use of this function outside of test suites
--- should be rare.
+-- | Run a 'TxM' to 'IO' given the database runtime environment @r@.
+-- Use of this function outside of test suites should be rare.
 --
 -- @since 0.2.0.0
 unsafeRunTxM :: r -> TxM r a -> IO a
@@ -84,13 +89,9 @@ unsafeRunTxM r x = runReaderT (unsafeUnTxM x) r
 -- function with care - arbitrary 'IO' should only be run within a transaction
 -- when truly necessary.
 --
--- This function may be used within 'TxM' or a specific database library
--- implementation monad from the various @postgresql-tx-*@ packages.
---
 -- @since 0.2.0.0
 unsafeWithRunInIOTxM :: ((forall a. TxM r a -> IO a) -> IO b) -> TxM r b
-unsafeWithRunInIOTxM inner =
-  UnsafeTxM $ ReaderT \r -> inner (unsafeRunTxM r)
+unsafeWithRunInIOTxM inner = unsafeMkTxM \r -> inner (unsafeRunTxM r)
 
 -- | A type class for specifying how to acquire an environment value
 -- to be used for running an implementation of a database library.
@@ -130,8 +131,7 @@ withTxEnv'Selecting
   -> proxy a -> (a -> TxM r x) -> TxM r x
 withTxEnv'Selecting selector _ f = do
   r <- UnsafeTxM ask
-  let a = selector r
-  f a
+  f (selector r)
 
 -- | Derive an implementation of 'withTxEnv' using a resource acquiring
 -- function.
@@ -143,8 +143,8 @@ withTxEnv'Resource
   -> proxy a -> (a -> TxM r x) -> TxM r x
 withTxEnv'Resource acquire _ f = do
   r <- UnsafeTxM ask
-  unsafeRunIOInTxM do
-    acquire r \a -> unsafeRunTxM r (f a)
+  unsafeWithRunInIOTxM \run -> do
+    acquire r \a -> run (f a)
 
 -- | Derive an implementation of 'withTxEnv' using a singleton value.
 --
