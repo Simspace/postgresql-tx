@@ -10,8 +10,11 @@ import Database.PostgreSQL.Simple.Transaction as X
   )
 -- Don't re-export names that we define in 'Database.PostgreSQL.Tx.Query'.
 import Database.PostgreSQL.Query as X hiding
-  ( pgWithTransaction
+  ( pgWithSavepoint
+  , pgWithTransaction
   , pgWithTransactionMode
   , pgQuery
+  , pgQueryWithMasker
   , pgExecute
+  , pgExecuteWithMasker
   )

@@ -25,6 +25,7 @@ import Data.Proxy (Proxy(Proxy))
 import Database.PostgreSQL.Tx (TxEnvs, TxM, withTxEnv)
 import Database.PostgreSQL.Tx.Query.Internal.Reexport
 import Database.PostgreSQL.Tx.Unsafe (unsafeMkTxM, unsafeRunIOInTxM, unsafeRunTxM, unsafeUnTxM)
+import GHC.Stack (HasCallStack)
 import qualified Database.PostgreSQL.Simple as Simple
 import qualified Database.PostgreSQL.Tx.MonadLogger
 
@@ -65,15 +66,15 @@ instance (PgQueryEnv r) => MonadLogger (UnsafePgQueryIO r) where
       withTxEnv (Proxy @Logger) \logger -> do
         unsafeRunIOInTxM $ logger loc src lvl (toLogStr msg)
 
-unsafeToPgQueryIO :: TxM r a -> UnsafePgQueryIO r a
+unsafeToPgQueryIO :: (HasCallStack) => TxM r a -> UnsafePgQueryIO r a
 unsafeToPgQueryIO x = UnsafePgQueryIO $ unsafeUnTxM x
 
-unsafeFromPgQueryIO :: UnsafePgQueryIO r a -> TxM r a
+unsafeFromPgQueryIO :: (HasCallStack) => UnsafePgQueryIO r a -> TxM r a
 unsafeFromPgQueryIO (UnsafePgQueryIO (ReaderT f)) = unsafeMkTxM f
 
 unsafeRunPgQueryTransaction
-  :: (PgQueryEnv r)
-  => (UnsafePgQueryIO r a -> UnsafePgQueryIO r a)
+  :: (PgQueryEnv r, HasCallStack)
+  => (HasCallStack => UnsafePgQueryIO r a -> UnsafePgQueryIO r a)
   -> r
   -> TxM r a
   -> IO a
