@@ -24,7 +24,7 @@ type PgPersistM a = forall r. (PgPersistEnv r) => TxM r a
 
 unsafePgPersistIO :: Persist.SqlPersistT IO a -> PgPersistM a
 unsafePgPersistIO x = do
-  unsafeMksTxM (Proxy @Persist.SqlBackend) \sqlBackend -> do
+  unsafeMksTxM \sqlBackend -> do
     runReaderT x sqlBackend
 
 unsafePgPersistIO1 :: (x1 -> Persist.SqlPersistT IO a) -> x1 -> PgPersistM a

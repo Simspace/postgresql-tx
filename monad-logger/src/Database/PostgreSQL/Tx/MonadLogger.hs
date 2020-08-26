@@ -23,5 +23,5 @@ type Logger = Loc -> LogSource -> LogLevel -> LogStr -> IO ()
 -- @since 0.2.0.0
 instance (TxEnv r Logger) => MonadLogger (TxM r) where
   monadLoggerLog loc src lvl msg = do
-    withTxEnv (Proxy @Logger) \logger -> do
+    withTxEnv \logger -> do
       unsafeRunIOInTxM $ logger loc src lvl (toLogStr msg)

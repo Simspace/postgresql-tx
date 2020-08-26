@@ -13,7 +13,6 @@ module Database.PostgreSQL.Tx.Simple.Internal
   ) where
 
 import Data.Kind (Constraint)
-import Data.Proxy (Proxy(Proxy))
 import Database.PostgreSQL.Tx (TxEnv(withTxEnv), TxM)
 import Database.PostgreSQL.Tx.Unsafe (unsafeMksTxM, unsafeRunIOInTxM, unsafeRunTxM)
 import qualified Database.PostgreSQL.Simple as Simple
@@ -34,21 +33,18 @@ unsafeRunTransaction
   -> r -> TxM r a -> IO a
 unsafeRunTransaction f r x = do
   unsafeRunTxM r do
-    withTxEnv (Proxy @Simple.Connection) \conn -> do
+    withTxEnv \conn -> do
       unsafeRunIOInTxM $ f conn (unsafeRunTxM r x)
-
-unsafeFromPgSimple :: (Simple.Connection -> IO x) -> PgSimpleM x
-unsafeFromPgSimple f = unsafeMksTxM (Proxy @Simple.Connection) f
 
 unsafeFromPgSimple1
   :: (Simple.Connection -> a1 -> IO x)
   -> a1 -> PgSimpleM x
-unsafeFromPgSimple1 f a1 = unsafeFromPgSimple \c -> f c a1
+unsafeFromPgSimple1 f a1 = unsafeMksTxM \c -> f c a1
 
 unsafeFromPgSimple2
   :: (Simple.Connection -> a1 -> a2 -> IO x)
   -> a1 -> a2 -> PgSimpleM x
-unsafeFromPgSimple2 f a1 a2 = unsafeFromPgSimple \c -> f c a1 a2
+unsafeFromPgSimple2 f a1 a2 = unsafeMksTxM \c -> f c a1 a2
 
 -- $disclaimer
 --

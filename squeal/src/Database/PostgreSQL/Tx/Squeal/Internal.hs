@@ -13,7 +13,6 @@ module Database.PostgreSQL.Tx.Squeal.Internal
   ) where
 
 import Data.Kind (Constraint)
-import Data.Proxy (Proxy(Proxy))
 import Database.PostgreSQL.Tx (TxEnvs, TxM, withTxEnv)
 import Database.PostgreSQL.Tx.Squeal.Internal.Reexport
 import Database.PostgreSQL.Tx.Unsafe (unsafeRunIOInTxM, unsafeRunTxM, unsafeWithTxEnvIO)
@@ -42,7 +41,7 @@ unsafeSquealIOTxM
   :: forall db r a. (SquealEnv db r)
   => PQ db db IO a -> TxM r a
 unsafeSquealIOTxM (Squeal.PQ f) = do
-  withTxEnv (Proxy @LibPQ.Connection) \conn ->
+  withTxEnv \conn ->
     unsafeRunIOInTxM do
       Squeal.K a <- f (Squeal.K conn)
       pure a
@@ -72,7 +71,7 @@ unsafeRunSquealTransaction
   -> TxM r a
   -> IO a
 unsafeRunSquealTransaction f r x = do
-  unsafeWithTxEnvIO (Proxy @LibPQ.Connection) r \conn -> do
+  unsafeWithTxEnvIO r \conn -> do
     flip Squeal.evalPQ (Squeal.K conn)
       $ f
       $ PQ \_ -> Squeal.K <$> unsafeRunTxM r x

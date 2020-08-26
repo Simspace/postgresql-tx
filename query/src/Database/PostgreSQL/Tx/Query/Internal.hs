@@ -21,7 +21,6 @@ import Control.Monad.Logger (MonadLogger(monadLoggerLog), toLogStr)
 import Control.Monad.Reader (ReaderT(ReaderT))
 import Control.Monad.Trans.Control (MonadBaseControl)
 import Data.Kind (Constraint)
-import Data.Proxy (Proxy(Proxy))
 import Database.PostgreSQL.Tx (TxEnvs, TxM, withTxEnv)
 import Database.PostgreSQL.Tx.Query.Internal.Reexport
 import Database.PostgreSQL.Tx.Unsafe (unsafeMkTxM, unsafeRunIOInTxM, unsafeRunTxM, unsafeUnTxM)
@@ -57,13 +56,13 @@ newtype UnsafePgQueryIO r a = UnsafePgQueryIO (ReaderT r IO a)
 instance (PgQueryEnv r) => HasPostgres (UnsafePgQueryIO r) where
   withPGConnection f = do
     unsafeToPgQueryIO do
-      withTxEnv (Proxy @Simple.Connection) \conn -> do
+      withTxEnv \conn -> do
         unsafeFromPgQueryIO $ f conn
 
 instance (PgQueryEnv r) => MonadLogger (UnsafePgQueryIO r) where
   monadLoggerLog loc src lvl msg = do
     unsafeToPgQueryIO do
-      withTxEnv (Proxy @Logger) \logger -> do
+      withTxEnv \logger -> do
         unsafeRunIOInTxM $ logger loc src lvl (toLogStr msg)
 
 unsafeToPgQueryIO :: (HasCallStack) => TxM r a -> UnsafePgQueryIO r a

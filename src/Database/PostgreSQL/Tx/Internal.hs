@@ -60,10 +60,10 @@ unsafeMkTxM = UnsafeTxM . ReaderT
 -- within a transaction when truly necessary.
 --
 -- @since 0.2.0.0
-unsafeMksTxM :: (TxEnv r a) => proxy a -> (a -> IO b) -> TxM r b
-unsafeMksTxM proxy f =
+unsafeMksTxM :: (TxEnv r a) => (a -> IO b) -> TxM r b
+unsafeMksTxM f =
   unsafeMkTxM \r -> unsafeRunTxM r do
-    withTxEnv proxy \a -> do
+    withTxEnv \a -> do
       unsafeRunIOInTxM $ f a
 
 -- | The 'TxM' monad discourages performing arbitrary 'IO' within a
@@ -119,7 +119,7 @@ class TxEnv r a where
   -- running a 'TxM' in a transaction.
   --
   -- @since 0.2.0.0
-  withTxEnv :: proxy a -> (a -> TxM r x) -> TxM r x
+  withTxEnv :: (a -> TxM r x) -> TxM r x
 
 -- | Derive an implementation of 'withTxEnv' using a function, most likely
 -- a field selector.
@@ -128,8 +128,8 @@ class TxEnv r a where
 withTxEnv'Selecting
   :: (TxEnv r a)
   => (r -> a)
-  -> proxy a -> (a -> TxM r x) -> TxM r x
-withTxEnv'Selecting selector _ f = do
+  -> (a -> TxM r x) -> TxM r x
+withTxEnv'Selecting selector f = do
   r <- UnsafeTxM ask
   f (selector r)
 
@@ -140,8 +140,8 @@ withTxEnv'Selecting selector _ f = do
 withTxEnv'Resource
   :: (TxEnv r a)
   => (r -> (a -> IO x) -> IO x)
-  -> proxy a -> (a -> TxM r x) -> TxM r x
-withTxEnv'Resource acquire _ f = do
+  -> (a -> TxM r x) -> TxM r x
+withTxEnv'Resource acquire f = do
   r <- UnsafeTxM ask
   unsafeWithRunInIOTxM \run -> do
     acquire r \a -> run (f a)
@@ -151,16 +151,16 @@ withTxEnv'Resource acquire _ f = do
 -- @since 0.2.0.0
 withTxEnv'Singleton
   :: a
-  -> proxy a -> (a -> TxM r x) -> TxM r x
-withTxEnv'Singleton a _ f = f a
+  -> (a -> TxM r x) -> TxM r x
+withTxEnv'Singleton a f = f a
 
 -- | Analogous to 'withTxEnv' but can be run in 'IO' instead of 'TxM'.
 --
 -- @since 0.2.0.0
-unsafeWithTxEnvIO :: (TxEnv r a) => proxy a -> r -> (a -> IO x) -> IO x
-unsafeWithTxEnvIO proxy r f = do
+unsafeWithTxEnvIO :: (TxEnv r a) => r -> (a -> IO x) -> IO x
+unsafeWithTxEnvIO r f = do
   unsafeRunTxM r do
-    withTxEnv proxy \a ->
+    withTxEnv \a ->
       unsafeRunIOInTxM $ f a
 
 -- | Type family which allows for specifying several 'TxEnv' constraints as
