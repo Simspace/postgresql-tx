@@ -46,23 +46,23 @@ unsafeSquealIOTxM (Squeal.PQ f) = do
     Squeal.K a <- f (Squeal.K conn)
     pure a
 
-unsafeSquealIOTx1
+unsafeSquealIOTxM1
   :: forall db r x1 a. (SquealEnv db r)
   => (x1 -> PQ db db IO a)
   -> x1 -> TxM r a
-unsafeSquealIOTx1 f x1 = unsafeSquealIOTxM $ f x1
+unsafeSquealIOTxM1 f x1 = unsafeSquealIOTxM $ f x1
 
-unsafeSquealIOTx2
+unsafeSquealIOTxM2
   :: forall db r x1 x2 a. (SquealEnv db r)
   => (x1 -> x2 -> PQ db db IO a)
   -> x1 -> x2 -> TxM r a
-unsafeSquealIOTx2 f x1 x2 = unsafeSquealIOTxM $ f x1 x2
+unsafeSquealIOTxM2 f x1 x2 = unsafeSquealIOTxM $ f x1 x2
 
-unsafeSquealIOTx3
+unsafeSquealIOTxM3
   :: forall db r x1 x2 x3 a. (SquealEnv db r)
   => (x1 -> x2 -> x3 -> PQ db db IO a)
   -> x1 -> x2 -> x3 -> TxM r a
-unsafeSquealIOTx3 f x1 x2 x3 = unsafeSquealIOTxM $ f x1 x2 x3
+unsafeSquealIOTxM3 f x1 x2 x3 = unsafeSquealIOTxM $ f x1 x2 x3
 
 unsafeRunSquealTransaction
   :: forall db r a. (SquealEnv db r)
