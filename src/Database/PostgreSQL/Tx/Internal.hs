@@ -20,7 +20,7 @@ module Database.PostgreSQL.Tx.Internal
   ) where
 
 import Control.Monad.IO.Class (MonadIO(liftIO))
-import Control.Monad.Trans.Reader (ReaderT(ReaderT, runReaderT), ask)
+import Control.Monad.Trans.Reader (ReaderT(ReaderT, runReaderT))
 import Data.Kind (Constraint)
 import GHC.TypeLits (ErrorMessage(Text), TypeError)
 
@@ -60,11 +60,11 @@ unsafeMkTxM = UnsafeTxM . ReaderT
 -- within a transaction when truly necessary.
 --
 -- @since 0.2.0.0
-unsafeMksTxM :: (TxEnv r a) => (a -> IO b) -> TxM r b
+unsafeMksTxM :: (TxEnv a r) => (a -> IO b) -> TxM r b
 unsafeMksTxM f =
   unsafeMkTxM \r -> unsafeRunTxM r do
-    withTxEnv \a -> do
-      unsafeRunIOInTxM $ f a
+    a <- askTxEnv
+    unsafeRunIOInTxM $ f a
 
 -- | The 'TxM' monad discourages performing arbitrary 'IO' within a
 -- transaction, so this instance generates a type error when client code tries
@@ -113,63 +113,33 @@ unsafeWithRunInIOTxM inner = unsafeMkTxM \r -> inner (unsafeRunTxM r)
 -- separate transactions!
 --
 -- @since 0.2.0.0
-class TxEnv r a where
+class TxEnv a r where
 
   -- | Acquire a value @a@ via the reader environment @r@ which assists in
   -- running a 'TxM' in a transaction.
   --
   -- @since 0.2.0.0
-  withTxEnv :: (a -> TxM r x) -> TxM r x
+  lookupTxEnv :: r -> a
 
--- | Derive an implementation of 'withTxEnv' using a function, most likely
--- a field selector.
---
--- @since 0.2.0.0
-withTxEnv'Selecting
-  :: (TxEnv r a)
-  => (r -> a)
-  -> (a -> TxM r x) -> TxM r x
-withTxEnv'Selecting selector f = do
-  r <- UnsafeTxM ask
-  f (selector r)
-
--- | Derive an implementation of 'withTxEnv' using a resource acquiring
--- function.
---
--- @since 0.2.0.0
-withTxEnv'Resource
-  :: (TxEnv r a)
-  => (r -> (a -> IO x) -> IO x)
-  -> (a -> TxM r x) -> TxM r x
-withTxEnv'Resource acquire f = do
-  r <- UnsafeTxM ask
-  unsafeWithRunInIOTxM \run -> do
-    acquire r \a -> run (f a)
-
--- | Derive an implementation of 'withTxEnv' using a singleton value.
---
--- @since 0.2.0.0
-withTxEnv'Singleton
-  :: a
-  -> (a -> TxM r x) -> TxM r x
-withTxEnv'Singleton a f = f a
+askTxEnv :: (TxEnv a r) => TxM r a
+askTxEnv = unsafeMkTxM (pure . lookupTxEnv)
 
 -- | Analogous to 'withTxEnv' but can be run in 'IO' instead of 'TxM'.
 --
 -- @since 0.2.0.0
-unsafeWithTxEnvIO :: (TxEnv r a) => r -> (a -> IO x) -> IO x
+unsafeWithTxEnvIO :: (TxEnv a r) => r -> (a -> IO x) -> IO x
 unsafeWithTxEnvIO r f = do
   unsafeRunTxM r do
-    withTxEnv \a ->
-      unsafeRunIOInTxM $ f a
+    a <- askTxEnv
+    unsafeRunIOInTxM $ f a
 
 -- | Type family which allows for specifying several 'TxEnv' constraints as
 -- a type-level list.
 --
 -- @since 0.2.0.0
-type family TxEnvs r (xs :: [*]) :: Constraint where
-  TxEnvs r '[] = ()
-  TxEnvs r (x ': xs) = (TxEnv r x, TxEnvs r xs)
+type family TxEnvs (xs :: [*]) r :: Constraint where
+  TxEnvs '[] r = ()
+  TxEnvs (x ': xs) r = (TxEnv x r, TxEnvs xs r)
 
 -- $disclaimer
 --

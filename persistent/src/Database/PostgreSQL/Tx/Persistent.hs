@@ -11,14 +11,13 @@ module Database.PostgreSQL.Tx.Persistent where
 import Control.Monad.Logger (Loc, LogLevel, LogSource, LogStr)
 import Control.Monad.Reader (runReaderT)
 import Data.Kind (Constraint)
-import Data.Proxy (Proxy(Proxy))
 import Database.PostgreSQL.Tx (TxEnv, TxM)
 import Database.PostgreSQL.Tx.Unsafe (unsafeMksTxM)
 import qualified Database.Persist.Postgresql as Persist
 
 type Logger = Loc -> LogSource -> LogLevel -> LogStr -> IO ()
 
-type PgPersistEnv r = (TxEnv r Persist.SqlBackend) :: Constraint
+type PgPersistEnv r = (TxEnv Persist.SqlBackend r) :: Constraint
 
 type PgPersistM a = forall r. (PgPersistEnv r) => TxM r a
 

@@ -1,34 +1,38 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 module Main where
 
-import Control.Concurrent (withMVar)
-import Control.Monad (when)
+import Control.Monad (void, when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (LoggingT(LoggingT), runStderrLoggingT)
+import Data.ByteString (ByteString)
 import Database.PostgreSQL.LibPQ as LibPQ
-import Database.PostgreSQL.Tx (TxEnv(withTxEnv), TxM, withTxEnv'Resource, withTxEnv'Selecting, withTxEnv'Singleton)
+import Database.PostgreSQL.Tx (TxM)
+import Database.PostgreSQL.Tx.HEnv (HEnv)
 import Database.PostgreSQL.Tx.Query (Logger)
 import Database.PostgreSQL.Tx.Squeal (SquealSchemas(SquealSchemas))
 import GHC.Stack (HasCallStack)
 import qualified Database.PostgreSQL.Simple as PG.Simple
 import qualified Database.PostgreSQL.Simple.Internal as PG.Simple.Internal
+import qualified Database.PostgreSQL.Tx.HEnv as HEnv
 import qualified Database.PostgreSQL.Tx.Query as Tx.Query
+import qualified Database.PostgreSQL.Tx.Unsafe as Tx.Unsafe
 import qualified Example.PgQuery
 import qualified Example.PgSimple
 import qualified Example.Squeal
 
 main :: IO ()
-main = do
-  dbEnv <- initDBEnv
-
+main = withAppEnv \appEnv -> do
       -- For this demo we are using postgresql-query for handling transactions;
       -- however, we could easily swap this out with any other postgresql-tx
       -- supported library.
@@ -36,7 +40,7 @@ main = do
       runTransaction =
         Tx.Query.pgWithTransactionMode
           Tx.Query.defaultTransactionMode
-          dbEnv
+          appEnv
 
   (ms1, ms2, ms3, ms4, ms5, ms6) <- do
     Example.PgSimple.withHandle \pgSimpleDB -> do
@@ -58,24 +62,15 @@ main = do
     when (x /= y) do
       error $ show x <> " /= " <> show y
 
-type AppM = TxM DBEnv
+type AppM = TxM AppEnv
 
-data DBEnv = DBEnv
-  { dbConnection :: PG.Simple.Connection
-  , dbLogger :: Logger
-  }
-
-instance TxEnv DBEnv PG.Simple.Connection where
-  withTxEnv = withTxEnv'Selecting dbConnection
-
-instance TxEnv DBEnv LibPQ.Connection where
-  withTxEnv = withTxEnv'Resource withLibPQConnection
-
-instance TxEnv DBEnv Logger where
-  withTxEnv = withTxEnv'Selecting dbLogger
-
-instance (s ~ Example.Squeal.Schemas) => TxEnv DBEnv (SquealSchemas s) where
-  withTxEnv = withTxEnv'Singleton (SquealSchemas @s)
+type AppEnv =
+  HEnv
+    '[ PG.Simple.Connection
+     , LibPQ.Connection
+     , Logger
+     , SquealSchemas Example.Squeal.Schemas
+     ]
 
 demo
   :: Example.PgSimple.Handle
@@ -98,23 +93,42 @@ demo pgSimpleDB pgQueryDB squealDB = do
   (ms4, ms5, ms6) <- Example.Squeal.fetchThreeMessages squealDB k4 k5 k6
   pure (ms1, ms2, ms3, ms4, ms5, ms6)
 
-initDBEnv :: IO DBEnv
-initDBEnv = do
-  conn <- PG.Simple.connectPostgreSQL "dbname=postgresql-tx-example"
-  _ <- PG.Simple.execute_ conn "drop table if exists foo"
-  _ <- PG.Simple.execute_ conn $
-        "create table if not exists foo"
-          <> "( id serial primary key"
-          <> ", message text not null unique"
-          <> ")"
-  pure DBEnv
-    { dbConnection = conn
-    , dbLogger = toLogger runStderrLoggingT
-    }
+withAppEnv :: (AppEnv -> IO a) -> IO a
+withAppEnv f = do
+  withPGConnection "dbname=postgresql-tx-example" \conn pqConn -> do
+    let env = mkEnv conn pqConn
+    Tx.Unsafe.unsafeRunTxM env do
+      void $ Tx.Query.pgExecute [Tx.Query.sqlExp|
+        drop table if exists foo
+      |]
+      void $ Tx.Query.pgExecute [Tx.Query.sqlExp|
+        create table if not exists foo
+          ( id serial primary key
+          , message text not null unique
+          )
+      |]
+    f env
+  where
+  logger = toLogger runStderrLoggingT
 
-withLibPQConnection :: DBEnv -> (LibPQ.Connection -> IO x) -> IO x
-withLibPQConnection DBEnv { dbConnection } f = do
-  withMVar (PG.Simple.Internal.connectionHandle dbConnection) f
+  mkEnv conn pqConn =
+    HEnv.fromTuple
+      ( conn
+      , pqConn
+      , logger
+      , SquealSchemas @Example.Squeal.Schemas
+      )
+
+withPGConnection
+  :: ByteString
+  -> (PG.Simple.Connection -> LibPQ.Connection -> IO a)
+  -> IO a
+withPGConnection connStr f = do
+  conn <- PG.Simple.connectPostgreSQL connStr
+  -- You might be tempted to use '(f conn)' here instead of 'pure' but that will
+  -- lead to "thread blocked indefinitely in an MVar operation".
+  pqConn <- PG.Simple.Internal.withConnection conn pure
+  f conn pqConn
 
 toLogger :: (LoggingT IO () -> IO ()) -> Logger
 toLogger f loc src lvl msg =

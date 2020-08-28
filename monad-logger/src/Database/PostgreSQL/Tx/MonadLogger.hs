@@ -9,8 +9,7 @@
 module Database.PostgreSQL.Tx.MonadLogger where
 
 import Control.Monad.Logger (MonadLogger(monadLoggerLog), Loc, LogLevel, LogSource, LogStr, toLogStr)
-import Data.Proxy (Proxy(Proxy))
-import Database.PostgreSQL.Tx (TxEnv(withTxEnv), TxM)
+import Database.PostgreSQL.Tx (TxEnv, TxM, askTxEnv)
 import Database.PostgreSQL.Tx.Unsafe (unsafeRunIOInTxM)
 
 -- | A logging function compatible with @monad-logger@.
@@ -21,7 +20,7 @@ type Logger = Loc -> LogSource -> LogLevel -> LogStr -> IO ()
 -- | Orphan instance for running @monad-logger@ functions in 'TxM'.
 --
 -- @since 0.2.0.0
-instance (TxEnv r Logger) => MonadLogger (TxM r) where
+instance (TxEnv Logger r) => MonadLogger (TxM r) where
   monadLoggerLog loc src lvl msg = do
-    withTxEnv \logger -> do
-      unsafeRunIOInTxM $ logger loc src lvl (toLogStr msg)
+    logger <- askTxEnv
+    unsafeRunIOInTxM $ logger loc src lvl (toLogStr msg)

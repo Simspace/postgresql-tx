@@ -13,14 +13,14 @@ module Database.PostgreSQL.Tx.Simple.Internal
   ) where
 
 import Data.Kind (Constraint)
-import Database.PostgreSQL.Tx (TxEnv(withTxEnv), TxM)
+import Database.PostgreSQL.Tx (TxEnv, TxM, askTxEnv)
 import Database.PostgreSQL.Tx.Unsafe (unsafeMksTxM, unsafeRunIOInTxM, unsafeRunTxM)
 import qualified Database.PostgreSQL.Simple as Simple
 
 -- | Runtime environment needed to run @postgresql-simple@ via @postgresql-tx@.
 --
 -- @since 0.2.0.0
-type PgSimpleEnv r = (TxEnv r Simple.Connection) :: Constraint
+type PgSimpleEnv r = (TxEnv Simple.Connection r) :: Constraint
 
 -- | Monad type alias for running @postgresql-simple@ via @postgresql-tx@.
 --
@@ -33,8 +33,8 @@ unsafeRunTransaction
   -> r -> TxM r a -> IO a
 unsafeRunTransaction f r x = do
   unsafeRunTxM r do
-    withTxEnv \conn -> do
-      unsafeRunIOInTxM $ f conn (unsafeRunTxM r x)
+    conn <- askTxEnv
+    unsafeRunIOInTxM $ f conn (unsafeRunTxM r x)
 
 unsafeFromPgSimple1
   :: (Simple.Connection -> a1 -> IO x)

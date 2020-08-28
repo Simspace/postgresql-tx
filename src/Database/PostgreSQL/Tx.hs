@@ -7,11 +7,9 @@ module Database.PostgreSQL.Tx
     TxM
 
     -- ** Transaction environment
-  , TxEnv(withTxEnv)
+  , TxEnv(lookupTxEnv)
   , TxEnvs
-  , withTxEnv'Selecting
-  , withTxEnv'Resource
-  , withTxEnv'Singleton
+  , askTxEnv
 
     -- ** Exceptions
   , throwExceptionTx

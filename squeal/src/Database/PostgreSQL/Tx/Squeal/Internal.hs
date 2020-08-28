@@ -13,7 +13,7 @@ module Database.PostgreSQL.Tx.Squeal.Internal
   ) where
 
 import Data.Kind (Constraint)
-import Database.PostgreSQL.Tx (TxEnvs, TxM, withTxEnv)
+import Database.PostgreSQL.Tx (TxEnvs, TxM, askTxEnv)
 import Database.PostgreSQL.Tx.Squeal.Internal.Reexport
 import Database.PostgreSQL.Tx.Unsafe (unsafeRunIOInTxM, unsafeRunTxM, unsafeWithTxEnvIO)
 import qualified Database.PostgreSQL.LibPQ as LibPQ
@@ -23,7 +23,7 @@ import qualified Squeal.PostgreSQL as Squeal
 --
 -- @since 0.2.0.0
 type SquealEnv (db :: Squeal.SchemasType) r =
-  (TxEnvs r '[SquealSchemas db, LibPQ.Connection]) :: Constraint
+  (TxEnvs '[SquealSchemas db, LibPQ.Connection] r) :: Constraint
 
 -- | Monad type alias for running @squeal-postgresql@ via @postgresql-tx@.
 --
@@ -41,10 +41,10 @@ unsafeSquealIOTxM
   :: forall db r a. (SquealEnv db r)
   => PQ db db IO a -> TxM r a
 unsafeSquealIOTxM (Squeal.PQ f) = do
-  withTxEnv \conn ->
-    unsafeRunIOInTxM do
-      Squeal.K a <- f (Squeal.K conn)
-      pure a
+  conn <- askTxEnv
+  unsafeRunIOInTxM do
+    Squeal.K a <- f (Squeal.K conn)
+    pure a
 
 unsafeSquealIOTx1
   :: forall db r x1 a. (SquealEnv db r)
