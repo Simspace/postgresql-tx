@@ -16,6 +16,7 @@ module Database.PostgreSQL.Tx.Query.Internal
   ) where
 
 import Control.Monad.Base (MonadBase)
+import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Logger (MonadLogger(monadLoggerLog), toLogStr)
 import Control.Monad.Reader (ReaderT(ReaderT))
@@ -51,6 +52,7 @@ newtype UnsafePgQueryIO r a = UnsafePgQueryIO (ReaderT r IO a)
   deriving newtype
     ( Functor, Applicative, Monad, MonadIO
     , MonadBase IO, MonadBaseControl IO, TransactionSafe
+    , MonadCatch, MonadMask, MonadThrow
     )
 
 instance (PgQueryEnv r) => HasPostgres (UnsafePgQueryIO r) where
