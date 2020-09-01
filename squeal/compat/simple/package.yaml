@@ -1,0 +1,27 @@
+name:                postgresql-tx-squeal-compat-simple
+version:             0.1.0.0
+github:              "simspace/postgresql-tx/squeal/compat/simple"
+license:             BSD3
+license-file:        LICENSE.md
+author:              "Jason Shipman"
+maintainer:          "jasonpshipman@gmail.com"
+copyright:           "2020 SimSpace"
+synopsis:            Connection interop from postgresql-simple connections to postgresql-libpq connections.
+category:            Database
+description:         Please see the README on GitHub at <https://github.com/simspace/postgresql-tx#readme>
+
+extra-source-files:
+- CHANGELOG.md
+- LICENSE.md
+- package.yaml
+
+ghc-options:
+  - -Wall
+
+dependencies:
+- base >= 4.7 && < 5
+- postgresql-simple >= 0.6.2 && < 0.7
+- postgresql-tx-squeal >= 0.2.0.0 && < 0.3
+
+library:
+  source-dirs: src

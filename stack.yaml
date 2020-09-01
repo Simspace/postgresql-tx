@@ -8,6 +8,7 @@ packages:
 - query
 - simple
 - squeal
+- squeal/compat/simple
 
 extra-deps:
 # {{{ postgresql-query

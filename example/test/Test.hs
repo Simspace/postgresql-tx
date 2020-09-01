@@ -21,10 +21,9 @@ import Database.PostgreSQL.Tx.Query (Logger)
 import Database.PostgreSQL.Tx.Squeal (SquealSchemas(SquealSchemas), SquealConnection)
 import GHC.Stack (HasCallStack)
 import qualified Database.PostgreSQL.Simple as PG.Simple
-import qualified Database.PostgreSQL.Simple.Internal as PG.Simple.Internal
 import qualified Database.PostgreSQL.Tx.HEnv as HEnv
 import qualified Database.PostgreSQL.Tx.Query as Tx.Query
-import qualified Database.PostgreSQL.Tx.Squeal.Internal as Tx.Squeal.Internal
+import qualified Database.PostgreSQL.Tx.Squeal.Compat.Simple as Tx.Squeal.Compat.Simple
 import qualified Database.PostgreSQL.Tx.Unsafe as Tx.Unsafe
 import qualified Example.PgQuery
 import qualified Example.PgSimple
@@ -95,28 +94,29 @@ demo pgSimpleDB pgQueryDB squealDB = do
 withAppEnv :: (AppEnv -> IO a) -> IO a
 withAppEnv f = do
   conn <- PG.Simple.connectPostgreSQL "dbname=postgresql-tx-example"
-  let env = mkEnv conn
-  Tx.Unsafe.unsafeRunTxM env do
-    void $ Tx.Query.pgExecute [Tx.Query.sqlExp|
-      drop table if exists foo
-    |]
-    void $ Tx.Query.pgExecute [Tx.Query.sqlExp|
-      create table if not exists foo
-        ( id serial primary key
-        , message text not null unique
-        )
-    |]
-  f env
+  withEnv conn \env -> do
+    Tx.Unsafe.unsafeRunTxM env do
+      void $ Tx.Query.pgExecute [Tx.Query.sqlExp|
+        drop table if exists foo
+      |]
+      void $ Tx.Query.pgExecute [Tx.Query.sqlExp|
+        create table if not exists foo
+          ( id serial primary key
+          , message text not null unique
+          )
+      |]
+    f env
   where
   logger = toLogger runStderrLoggingT
 
-  mkEnv conn =
-    HEnv.fromTuple
-      ( conn
-      , logger
-      , SquealSchemas @Example.Squeal.Schemas
-      , Tx.Squeal.Internal.UnsafeSquealConnection (PG.Simple.Internal.withConnection conn)
-      )
+  withEnv simpleConn g = do
+    Tx.Squeal.Compat.Simple.withSquealConnection simpleConn \squealConn -> do
+      g $ HEnv.fromTuple
+        ( simpleConn
+        , logger
+        , SquealSchemas @Example.Squeal.Schemas
+        , squealConn
+        )
 
 toLogger :: (LoggingT IO () -> IO ()) -> Logger
 toLogger f loc src lvl msg =

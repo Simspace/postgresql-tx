@@ -5,9 +5,6 @@
 
 packages:
 - completed:
-    cabal-file:
-      size: 4959
-      sha256: 8891f4eea893607c6e500d73f5f095e11f5bc7c0c20467e6b9040a3e1be039a5
     name: postgresql-query
     version: 3.5.0
     git: https://github.com/Simspace/postgresql-query
