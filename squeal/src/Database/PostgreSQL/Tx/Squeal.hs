@@ -9,6 +9,8 @@ module Database.PostgreSQL.Tx.Squeal
   ( SquealEnv
   , SquealM
   , SquealSchemas(SquealSchemas)
+  , SquealConnection
+  , mkSquealConnection
   , module Database.PostgreSQL.Tx.Squeal
   , module Database.PostgreSQL.Tx.Squeal.Internal.Reexport
   ) where

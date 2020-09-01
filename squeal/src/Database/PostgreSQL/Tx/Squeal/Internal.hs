@@ -1,8 +1,11 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 module Database.PostgreSQL.Tx.Squeal.Internal
   ( -- * Disclaimer
@@ -15,7 +18,7 @@ module Database.PostgreSQL.Tx.Squeal.Internal
 import Data.Kind (Constraint)
 import Database.PostgreSQL.Tx (TxEnvs, TxM, askTxEnv)
 import Database.PostgreSQL.Tx.Squeal.Internal.Reexport
-import Database.PostgreSQL.Tx.Unsafe (unsafeRunIOInTxM, unsafeRunTxM, unsafeWithTxEnvIO)
+import Database.PostgreSQL.Tx.Unsafe (unsafeRunIOInTxM, unsafeRunTxM, unsafeLookupTxEnvIO)
 import qualified Database.PostgreSQL.LibPQ as LibPQ
 import qualified Squeal.PostgreSQL as Squeal
 
@@ -23,7 +26,7 @@ import qualified Squeal.PostgreSQL as Squeal
 --
 -- @since 0.2.0.0
 type SquealEnv (db :: Squeal.SchemasType) r =
-  (TxEnvs '[SquealSchemas db, LibPQ.Connection] r) :: Constraint
+  (TxEnvs '[SquealSchemas db, SquealConnection] r) :: Constraint
 
 -- | Monad type alias for running @squeal-postgresql@ via @postgresql-tx@.
 --
@@ -34,15 +37,31 @@ type SquealM db a = forall r. (SquealEnv db r) => TxM r a
 -- a 'TxM' can be run.
 --
 -- @since 0.2.0.0
-data SquealSchemas (db :: Squeal.SchemasType) =
-  SquealSchemas
+data SquealSchemas (db :: Squeal.SchemasType) = SquealSchemas
+
+-- | Used in the 'SquealEnv' to specify the 'LibPQ.Connection' to use.
+-- Should produce the same 'LibPQ.Connection' if called multiple times
+-- in the same transaction. Usually you will want to use 'mkSquealConnection'
+-- to get one.
+--
+-- @since 0.2.0.0
+data SquealConnection =
+  UnsafeSquealConnection
+    { unsafeWithLibPQConnection :: forall a. (LibPQ.Connection -> IO a) -> IO a
+    }
+
+-- | Construct a 'SquealConnection' from a 'LibPQ.Connection'.
+--
+-- @since 0.2.0.0
+mkSquealConnection :: LibPQ.Connection -> SquealConnection
+mkSquealConnection conn = UnsafeSquealConnection ($ conn)
 
 unsafeSquealIOTxM
   :: forall db r a. (SquealEnv db r)
   => PQ db db IO a -> TxM r a
 unsafeSquealIOTxM (Squeal.PQ f) = do
-  conn <- askTxEnv
-  unsafeRunIOInTxM do
+  UnsafeSquealConnection { unsafeWithLibPQConnection } <- askTxEnv
+  unsafeRunIOInTxM $ unsafeWithLibPQConnection \conn -> do
     Squeal.K a <- f (Squeal.K conn)
     pure a
 
@@ -71,7 +90,8 @@ unsafeRunSquealTransaction
   -> TxM r a
   -> IO a
 unsafeRunSquealTransaction f r x = do
-  unsafeWithTxEnvIO r \conn -> do
+  UnsafeSquealConnection { unsafeWithLibPQConnection } <- unsafeLookupTxEnvIO r
+  unsafeWithLibPQConnection \conn -> do
     flip Squeal.evalPQ (Squeal.K conn)
       $ f
       $ PQ \_ -> Squeal.K <$> unsafeRunTxM r x

@@ -15,17 +15,16 @@ module Main where
 import Control.Monad (void, when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (LoggingT(LoggingT), runStderrLoggingT)
-import Data.ByteString (ByteString)
-import Database.PostgreSQL.LibPQ as LibPQ
 import Database.PostgreSQL.Tx (TxM)
 import Database.PostgreSQL.Tx.HEnv (HEnv)
 import Database.PostgreSQL.Tx.Query (Logger)
-import Database.PostgreSQL.Tx.Squeal (SquealSchemas(SquealSchemas))
+import Database.PostgreSQL.Tx.Squeal (SquealSchemas(SquealSchemas), SquealConnection)
 import GHC.Stack (HasCallStack)
 import qualified Database.PostgreSQL.Simple as PG.Simple
 import qualified Database.PostgreSQL.Simple.Internal as PG.Simple.Internal
 import qualified Database.PostgreSQL.Tx.HEnv as HEnv
 import qualified Database.PostgreSQL.Tx.Query as Tx.Query
+import qualified Database.PostgreSQL.Tx.Squeal.Internal as Tx.Squeal.Internal
 import qualified Database.PostgreSQL.Tx.Unsafe as Tx.Unsafe
 import qualified Example.PgQuery
 import qualified Example.PgSimple
@@ -67,9 +66,9 @@ type AppM = TxM AppEnv
 type AppEnv =
   HEnv
     '[ PG.Simple.Connection
-     , LibPQ.Connection
      , Logger
      , SquealSchemas Example.Squeal.Schemas
+     , SquealConnection
      ]
 
 demo
@@ -95,40 +94,29 @@ demo pgSimpleDB pgQueryDB squealDB = do
 
 withAppEnv :: (AppEnv -> IO a) -> IO a
 withAppEnv f = do
-  withPGConnection "dbname=postgresql-tx-example" \conn pqConn -> do
-    let env = mkEnv conn pqConn
-    Tx.Unsafe.unsafeRunTxM env do
-      void $ Tx.Query.pgExecute [Tx.Query.sqlExp|
-        drop table if exists foo
-      |]
-      void $ Tx.Query.pgExecute [Tx.Query.sqlExp|
-        create table if not exists foo
-          ( id serial primary key
-          , message text not null unique
-          )
-      |]
-    f env
+  conn <- PG.Simple.connectPostgreSQL "dbname=postgresql-tx-example"
+  let env = mkEnv conn
+  Tx.Unsafe.unsafeRunTxM env do
+    void $ Tx.Query.pgExecute [Tx.Query.sqlExp|
+      drop table if exists foo
+    |]
+    void $ Tx.Query.pgExecute [Tx.Query.sqlExp|
+      create table if not exists foo
+        ( id serial primary key
+        , message text not null unique
+        )
+    |]
+  f env
   where
   logger = toLogger runStderrLoggingT
 
-  mkEnv conn pqConn =
+  mkEnv conn =
     HEnv.fromTuple
       ( conn
-      , pqConn
       , logger
       , SquealSchemas @Example.Squeal.Schemas
+      , Tx.Squeal.Internal.UnsafeSquealConnection (PG.Simple.Internal.withConnection conn)
       )
-
-withPGConnection
-  :: ByteString
-  -> (PG.Simple.Connection -> LibPQ.Connection -> IO a)
-  -> IO a
-withPGConnection connStr f = do
-  conn <- PG.Simple.connectPostgreSQL connStr
-  -- You might be tempted to use '(f conn)' here instead of 'pure' but that will
-  -- lead to "thread blocked indefinitely in an MVar operation".
-  pqConn <- PG.Simple.Internal.withConnection conn pure
-  f conn pqConn
 
 toLogger :: (LoggingT IO () -> IO ()) -> Logger
 toLogger f loc src lvl msg =

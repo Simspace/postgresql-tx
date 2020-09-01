@@ -100,10 +100,6 @@ unsafeWithRunInIOTxM inner = unsafeMkTxM \r -> inner (unsafeRunTxM r)
 -- define an instance of @TxEnv MyDBEnv Connection@ and use @TxM MyDBEnv@
 -- as your monad for executing transactions.
 --
--- When implementing instances for this type class, you are encouraged
--- to use one of the supplied helper implementations: 'withTxEnv'Selecting',
--- 'withTxEnv'Resource', 'withTxEnv'Singleton'.
---
 -- Note that implementations should take care and ensure that multiple
 -- instances are compatible with one another. For example, let's say you
 -- have instances for both @TxEnv E PgSimple.Connection@ and
@@ -124,14 +120,11 @@ class TxEnv a r where
 askTxEnv :: (TxEnv a r) => TxM r a
 askTxEnv = unsafeMkTxM (pure . lookupTxEnv)
 
--- | Analogous to 'withTxEnv' but can be run in 'IO' instead of 'TxM'.
+-- | Analogous to 'lookupTxEnv' but can be run in 'IO' instead of 'TxM'.
 --
 -- @since 0.2.0.0
-unsafeWithTxEnvIO :: (TxEnv a r) => r -> (a -> IO x) -> IO x
-unsafeWithTxEnvIO r f = do
-  unsafeRunTxM r do
-    a <- askTxEnv
-    unsafeRunIOInTxM $ f a
+unsafeLookupTxEnvIO :: (TxEnv a r) => r -> IO a
+unsafeLookupTxEnvIO r = unsafeRunTxM r askTxEnv
 
 -- | Type family which allows for specifying several 'TxEnv' constraints as
 -- a type-level list.

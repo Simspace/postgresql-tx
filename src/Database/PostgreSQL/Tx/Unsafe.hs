@@ -13,7 +13,7 @@ module Database.PostgreSQL.Tx.Unsafe
   , unsafeMkTxM
   , unsafeMksTxM
 
-  , unsafeWithTxEnvIO
+  , unsafeLookupTxEnvIO
   ) where
 
 import Database.PostgreSQL.Tx.Internal
