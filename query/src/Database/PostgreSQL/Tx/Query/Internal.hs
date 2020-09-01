@@ -18,7 +18,7 @@ module Database.PostgreSQL.Tx.Query.Internal
 import Control.Monad.Base (MonadBase)
 import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow)
 import Control.Monad.IO.Class (MonadIO)
-import Control.Monad.Logger (MonadLogger(monadLoggerLog), toLogStr)
+import Control.Monad.Logger (MonadLogger(monadLoggerLog), MonadLoggerIO(askLoggerIO), toLogStr)
 import Control.Monad.Reader (ReaderT(ReaderT))
 import Control.Monad.Trans.Control (MonadBaseControl)
 import Data.Kind (Constraint)
@@ -66,6 +66,9 @@ instance (PgQueryEnv r) => MonadLogger (UnsafePgQueryIO r) where
     unsafeToPgQueryIO do
       logger <- askTxEnv
       unsafeRunIOInTxM $ logger loc src lvl (toLogStr msg)
+
+instance (PgQueryEnv r) => MonadLoggerIO (UnsafePgQueryIO r) where
+  askLoggerIO = unsafeToPgQueryIO askTxEnv
 
 unsafeToPgQueryIO :: (HasCallStack) => TxM r a -> UnsafePgQueryIO r a
 unsafeToPgQueryIO x = UnsafePgQueryIO $ unsafeUnTxM x
