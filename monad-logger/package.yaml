@@ -1,5 +1,5 @@
 name:                postgresql-tx-monad-logger
-version:             0.1.0.0
+version:             0.2.0.0
 github:              "simspace/postgresql-tx/monad-logger"
 license:             BSD3
 license-file:        LICENSE.md
@@ -21,7 +21,7 @@ ghc-options:
 dependencies:
 - base >= 4.7 && < 5
 - monad-logger >= 0.3.32 && < 0.4
-- postgresql-tx >= 0.1.0.0 && < 0.2
+- postgresql-tx >= 0.2.0.0 && < 0.3
 
 library:
   source-dirs: src

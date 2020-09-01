@@ -1,5 +1,5 @@
 name:                postgresql-tx-query
-version:             0.1.0.0
+version:             0.2.0.0
 github:              "simspace/postgresql-tx/query"
 license:             BSD3
 license-file:        LICENSE.md
@@ -26,8 +26,8 @@ dependencies:
 - mtl >= 2.2.2 && < 2.3
 - postgresql-query >= 3.5.0 && < 3.6
 - postgresql-simple >= 0.6.2 && < 0.7
-- postgresql-tx >= 0.1.0.0 && < 0.2
-- postgresql-tx-monad-logger >= 0.1.0.0 && < 0.2
+- postgresql-tx >= 0.2.0.0 && < 0.3
+- postgresql-tx-monad-logger >= 0.2.0.0 && < 0.3
 - transformers >= 0.5.6.2 && < 0.6
 - transformers-base >= 0.4.5.2 && < 0.5
 

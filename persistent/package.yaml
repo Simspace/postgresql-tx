@@ -25,7 +25,7 @@ dependencies:
 - mtl >= 2.2.2 && < 2.3
 - persistent >= 2.10.5.2 && < 2.11
 - persistent-postgresql >= 2.10.1.2 && < 2.11
-- postgresql-tx >= 0.1.0.0 && < 0.2
+- postgresql-tx >= 0.2.0.0 && < 0.3
 
 library:
   source-dirs: src
