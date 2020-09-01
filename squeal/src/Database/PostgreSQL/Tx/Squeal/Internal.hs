@@ -45,7 +45,7 @@ data SquealSchemas (db :: Squeal.SchemasType) = SquealSchemas
 -- to get one.
 --
 -- @since 0.2.0.0
-data SquealConnection =
+newtype SquealConnection =
   UnsafeSquealConnection
     { unsafeWithLibPQConnection :: forall a. (LibPQ.Connection -> IO a) -> IO a
     }
