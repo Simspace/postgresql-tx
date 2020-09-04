@@ -245,11 +245,12 @@ transactionally m = unsafeRunSquealTransaction (Squeal.transactionally m)
 transactionally_ :: (SquealEnv r) => r -> TxM r a -> IO a
 transactionally_ = unsafeRunSquealTransaction Squeal.transactionally_
 
--- | Analogue of 'Squeal.transactionallyRetry'.
---
--- @since 0.1.0.0
-transactionallyRetry :: (SquealEnv r) => TransactionMode -> r -> TxM r a -> IO a
-transactionallyRetry m = unsafeRunSquealTransaction (Squeal.transactionallyRetry m)
+-- TODO: Removed for now until we provide a retry mechanism.
+-- -- | Analogue of 'Squeal.transactionallyRetry'.
+-- --
+-- -- @since 0.1.0.0
+-- transactionallyRetry :: (SquealEnv r) => TransactionMode -> r -> TxM r a -> IO a
+-- transactionallyRetry m = unsafeRunSquealTransaction (Squeal.transactionallyRetry m)
 
 -- | Analogue of 'Squeal.ephemerally'.
 --
