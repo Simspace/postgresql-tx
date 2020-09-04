@@ -7,12 +7,13 @@
 {-# LANGUAGE RankNTypes #-}
 module Example.PgSimple.Internal.Queries where
 
+import Database.PostgreSQL.Tx (TxM)
 import qualified Control.Exception as Exception
 import qualified Database.PostgreSQL.Simple as PG.Simple
 import qualified Database.PostgreSQL.Tx.Simple as Tx
 import qualified Example.PgSimple.Internal.DB as DB
 
-new :: IO DB.Handle
+new :: (Tx.PgSimpleEnv r) => IO (DB.Handle (TxM r))
 new =
   pure DB.Handle
     { DB.insertMessage
@@ -21,7 +22,7 @@ new =
     , DB.close = mempty
     }
 
-withHandle :: (DB.Handle -> IO a) -> IO a
+withHandle :: (Tx.PgSimpleEnv r) => ((DB.Handle (TxM r)) -> IO a) -> IO a
 withHandle = Exception.bracket new DB.close
 
 insertMessage :: String -> Tx.PgSimpleM Int

@@ -6,11 +6,12 @@
 {-# LANGUAGE RankNTypes #-}
 module Example.PgQuery.Internal.Queries where
 
+import Database.PostgreSQL.Tx (TxM)
 import qualified Database.PostgreSQL.Tx.Query as Tx
 import qualified Control.Exception as Exception
 import qualified Example.PgQuery.Internal.DB as DB
 
-new :: IO DB.Handle
+new :: (Tx.PgQueryEnv r) => IO (DB.Handle (TxM r))
 new =
   pure DB.Handle
     { DB.insertTwoMessages
@@ -19,7 +20,7 @@ new =
     , DB.close = mempty
     }
 
-withHandle :: (DB.Handle -> IO a) -> IO a
+withHandle :: (Tx.PgQueryEnv r) => ((DB.Handle (TxM r)) -> IO a) -> IO a
 withHandle = Exception.bracket new DB.close
 
 insertTwoMessages

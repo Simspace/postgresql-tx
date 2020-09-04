@@ -1,13 +1,11 @@
 {-# LANGUAGE RankNTypes #-}
 module Example.PgQuery.Internal.DB where
 
-import Database.PostgreSQL.Tx.Query (PgQueryM)
-
-data Handle = Handle
+data Handle f = Handle
   { insertTwoMessages
-      :: String -> String -> PgQueryM (Int, Int)
+      :: String -> String -> f (Int, Int)
   , fetchTwoMessages
-      :: Int -> Int -> PgQueryM (Maybe String, Maybe String)
+      :: Int -> Int -> f (Maybe String, Maybe String)
 
   , close :: IO ()
   }

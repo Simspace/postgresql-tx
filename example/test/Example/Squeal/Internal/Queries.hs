@@ -9,12 +9,13 @@
 module Example.Squeal.Internal.Queries where
 
 import Data.Int (Int32)
+import Database.PostgreSQL.Tx (TxM)
 import Database.PostgreSQL.Tx.Squeal
 import Example.Squeal.Internal.Schema (Schemas)
 import qualified Control.Exception as Exception
 import qualified Example.Squeal.Internal.DB as DB
 
-new :: IO DB.Handle
+new :: (SquealEnv r) => IO (DB.Handle (TxM r))
 new =
   pure DB.Handle
     { DB.insertThreeMessages
@@ -23,7 +24,7 @@ new =
     , DB.close = mempty
     }
 
-withHandle :: (DB.Handle -> IO a) -> IO a
+withHandle :: (SquealEnv r) => ((DB.Handle (TxM r)) -> IO a) -> IO a
 withHandle = Exception.bracket new DB.close
 
 insertThreeMessages

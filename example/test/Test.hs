@@ -73,9 +73,9 @@ type AppEnv =
      ]
 
 demo
-  :: Example.PgSimple.Handle
-  -> Example.PgQuery.Handle
-  -> Example.Squeal.Handle
+  :: Example.PgSimple.Handle AppM
+  -> Example.PgQuery.Handle AppM
+  -> Example.Squeal.Handle AppM
   -> AppM
       ( Maybe String
       , Maybe String

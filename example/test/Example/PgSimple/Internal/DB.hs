@@ -2,11 +2,9 @@
 {-# LANGUAGE RankNTypes #-}
 module Example.PgSimple.Internal.DB where
 
-import Database.PostgreSQL.Tx.Simple (PgSimpleM)
-
-data Handle = Handle
-  { insertMessage :: String -> PgSimpleM Int
-  , fetchMessage :: Int -> PgSimpleM (Maybe String)
+data Handle f = Handle
+  { insertMessage :: String -> f Int
+  , fetchMessage :: Int -> f (Maybe String)
 
   , close :: IO ()
   }

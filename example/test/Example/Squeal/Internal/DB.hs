@@ -2,13 +2,11 @@
 {-# LANGUAGE RankNTypes #-}
 module Example.Squeal.Internal.DB where
 
-import Database.PostgreSQL.Tx.Squeal (SquealM)
-
-data Handle = Handle
+data Handle f = Handle
   { insertThreeMessages
-      :: String -> String -> String -> SquealM (Int, Int, Int)
+      :: String -> String -> String -> f (Int, Int, Int)
   , fetchThreeMessages
-      :: Int -> Int -> Int -> SquealM (Maybe String, Maybe String, Maybe String)
+      :: Int -> Int -> Int -> f (Maybe String, Maybe String, Maybe String)
 
   , close :: IO ()
   }
