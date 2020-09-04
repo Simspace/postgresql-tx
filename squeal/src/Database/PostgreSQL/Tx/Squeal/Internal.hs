@@ -37,40 +37,42 @@ type SquealEnv r =
 -- @since 0.2.0.0
 type SquealM a = forall r. (SquealEnv r) => TxM r a
 
--- | Alias for 'SquealTxM' but has the 'SquealEnv' constraint applied to @r@
+-- | Alias for 'SquealTxM'' but has the 'SquealEnv' constraint applied to @r@
 -- and uses @db@ for both @db0@ and @db1@ since this is the common case.
 --
 -- @since 0.2.0.0
-type DefaultSquealTxM (db :: SchemasType) a =
-  forall r. (SquealEnv r) => SquealTxM db db r a
+type SquealTxM (db :: SchemasType) a =
+  forall r. (SquealEnv r) => SquealTxM' db db r a
 
 -- | A newtype wrapper around 'TxM' which includes the @squeal@ 'SchemasType'
 -- parameters @db0@ and @db1@. These are used only as type information.
--- You can easily convert 'TxM' to and from 'SquealTxM' by using the
--- 'SquealTxM' constructor and 'fromSquealTxM' function, respectively.
+-- You can easily convert 'TxM' to and from 'SquealTxM'' by using the
+-- 'SquealTxM'' constructor and 'fromSquealTxM' function, respectively.
+--
+-- In practice, you will likely prefer to use the 'SquealTxM' type alias.
 --
 -- @since 0.2.0.0
-newtype SquealTxM (db0 :: SchemasType) (db1 :: SchemasType) r a =
+newtype SquealTxM' (db0 :: SchemasType) (db1 :: SchemasType) r a =
   SquealTxM
-    { -- | Convert a 'SquealTxM' to a 'TxM'.
+    { -- | Convert a 'SquealTxM'' to a 'TxM'.
       --
       -- @since 0.2.0.0
       fromSquealTxM :: TxM r a
     }
   deriving newtype (Functor, Applicative, Monad)
 
--- | The 'SquealTxM' monad discourages performing arbitrary 'IO' within a
+-- | The 'SquealTxM'' monad discourages performing arbitrary 'IO' within a
 -- transaction, so this instance generates a type error when client code tries
 -- to call 'liftIO'.
 --
--- Note that specialize this instance for 'SquealTxM' rather than derive it
+-- Note that specialize this instance for 'SquealTxM'' rather than derive it
 -- via newtype so we can provide a better error message.
 --
 -- @since 0.2.0.0
 instance
   ( TypeError
-      ('Text "MonadIO is banned in SquealTxM; use 'SquealTxM . unsafeRunIOInTxM' if you are sure this is safe IO")
-  ) => MonadIO (SquealTxM db0 db1 r)
+      ('Text "MonadIO is banned in SquealTxM'; use 'SquealTxM . unsafeRunIOInTxM' if you are sure this is safe IO")
+  ) => MonadIO (SquealTxM' db0 db1 r)
   where
   liftIO = undefined
 
@@ -92,9 +94,8 @@ mkSquealConnection :: LibPQ.Connection -> SquealConnection
 mkSquealConnection conn = UnsafeSquealConnection (pure conn)
 
 unsafeSquealIOTxM
-  :: (SquealEnv r)
-  => PQ db db IO a
-  -> SquealTxM db db r a
+  :: PQ db db IO a
+  -> SquealTxM db a
 unsafeSquealIOTxM (PQ f) = SquealTxM do
   UnsafeSquealConnection { unsafeGetLibPQConnection } <- askTxEnv
   unsafeRunIOInTxM do
@@ -103,21 +104,18 @@ unsafeSquealIOTxM (PQ f) = SquealTxM do
     pure a
 
 unsafeSquealIOTxM1
-  :: (SquealEnv r)
-  => (x1 -> PQ db db IO a)
-  -> x1 -> SquealTxM db db r a
+  :: (x1 -> PQ db db IO a)
+  -> x1 -> SquealTxM db a
 unsafeSquealIOTxM1 f x1 = unsafeSquealIOTxM $ f x1
 
 unsafeSquealIOTxM2
-  :: (SquealEnv r)
-  => (x1 -> x2 -> PQ db db IO a)
-  -> x1 -> x2 -> SquealTxM db db r a
+  :: (x1 -> x2 -> PQ db db IO a)
+  -> x1 -> x2 -> SquealTxM db a
 unsafeSquealIOTxM2 f x1 x2 = unsafeSquealIOTxM $ f x1 x2
 
 unsafeSquealIOTxM3
-  :: (SquealEnv r)
-  => (x1 -> x2 -> x3 -> PQ db db IO a)
-  -> x1 -> x2 -> x3 -> SquealTxM db db r a
+  :: (x1 -> x2 -> x3 -> PQ db db IO a)
+  -> x1 -> x2 -> x3 -> SquealTxM db a
 unsafeSquealIOTxM3 f x1 x2 x3 = unsafeSquealIOTxM $ f x1 x2 x3
 
 unsafeRunSquealTransaction
