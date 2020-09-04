@@ -5,7 +5,7 @@ module Example.Squeal.Internal.DB where
 import Database.PostgreSQL.Tx.Squeal (SquealM)
 import Example.Squeal.Internal.Schema (Schemas)
 
-type M a = SquealM Schemas a
+type M a = SquealM Schemas Schemas a
 
 data Handle = Handle
   { insertThreeMessages

@@ -19,5 +19,6 @@ import qualified Database.PostgreSQL.Simple.Internal as Simple.Internal
 -- @since 0.1.0.0
 withSquealConnection :: Simple.Connection -> (SquealConnection -> IO a) -> IO a
 withSquealConnection conn f = do
-  libpqConn <- Concurrent.readMVar $ Simple.Internal.connectionHandle conn
-  f $ UnsafeSquealConnection ($ libpqConn)
+  f $ UnsafeSquealConnection
+    $ Concurrent.readMVar
+    $ Simple.Internal.connectionHandle conn

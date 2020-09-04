@@ -34,7 +34,7 @@ insertThreeMessages s1 s2 s3 = do
     rows -> error $ "Expected exactly 3 rows, got " <> show (length rows)
   where
   go :: DB.M [Int]
-  go = executeParams stmt (s1, s2, s3) >>= getRows @Schemas
+  go = executeParams stmt (s1, s2, s3) >>= getRows
 
   stmt :: Statement Schemas (String, String, String) Int
   stmt = Manipulation genericParams rowDecoder insertIntoFoo
@@ -62,7 +62,7 @@ fetchThreeMessages k1 k2 k3 = do
     )
   where
   go :: DB.M [(Int, String)]
-  go = executeParams stmt params >>= getRows @Schemas
+  go = executeParams stmt params >>= getRows
 
   params :: (Int32, Int32, Int32)
   params =

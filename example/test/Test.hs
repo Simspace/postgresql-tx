@@ -6,23 +6,25 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 module Main where
 
-import Control.Monad (void, when)
+import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Logger (LoggingT(LoggingT), runStderrLoggingT)
 import Database.PostgreSQL.Tx (TxM)
 import Database.PostgreSQL.Tx.HEnv (HEnv)
 import Database.PostgreSQL.Tx.Query (Logger)
-import Database.PostgreSQL.Tx.Squeal (SquealSchemas(SquealSchemas), SquealConnection)
-import GHC.Stack (HasCallStack)
+import Database.PostgreSQL.Tx.Squeal (SquealConnection, fromSquealTxM)
+import Test.Hspec
 import qualified Database.PostgreSQL.Simple as PG.Simple
 import qualified Database.PostgreSQL.Tx.HEnv as HEnv
 import qualified Database.PostgreSQL.Tx.Query as Tx.Query
+import qualified Database.PostgreSQL.Tx.Squeal as Tx.Squeal
 import qualified Database.PostgreSQL.Tx.Squeal.Compat.Simple as Tx.Squeal.Compat.Simple
 import qualified Database.PostgreSQL.Tx.Unsafe as Tx.Unsafe
 import qualified Example.PgQuery
@@ -30,35 +32,36 @@ import qualified Example.PgSimple
 import qualified Example.Squeal
 
 main :: IO ()
-main = withAppEnv \appEnv -> do
-      -- For this demo we are using postgresql-query for handling transactions;
-      -- however, we could easily swap this out with any other postgresql-tx
-      -- supported library.
-  let runTransaction :: AppM a -> IO a
-      runTransaction =
-        Tx.Query.pgWithTransactionMode
-          Tx.Query.defaultTransactionMode
-          appEnv
+main = hspec do
+  describe "postgresql-tx transaction runners" do
 
-  (ms1, ms2, ms3, ms4, ms5, ms6) <- do
-    Example.PgSimple.withHandle \pgSimpleDB -> do
-      Example.PgQuery.withHandle \pgQueryDB -> do
-        Example.Squeal.withHandle \squealDB -> do
-          runTransaction do
-            demo pgSimpleDB pgQueryDB squealDB
+    describe "postgresql-tx-query" do
+      it "supports pgWithTransaction" do
+        theTest Tx.Query.pgWithTransaction
+      it "supports pgWithTransactionMode" do
+        theTest $ Tx.Query.pgWithTransactionMode Tx.Query.defaultTransactionMode
 
-  ms1 `shouldBe` Just "pg-simple: hi"
-  ms2 `shouldBe` Just "pg-query: sup"
-  ms3 `shouldBe` Just "pg-query: wut"
-  ms4 `shouldBe` Just "squeal: nuthin"
-  ms5 `shouldBe` Just "squeal: ye"
-  ms6 `shouldBe` Just "squeal: k bye"
-  putStrLn "Success!"
+    describe "postgresql-tx-squeal" do
+      it "supports transactionally_" do
+        theTest Tx.Squeal.transactionally_
+      it "supports transactionally" do
+        theTest $ Tx.Squeal.transactionally Tx.Squeal.defaultMode
   where
-  shouldBe :: (HasCallStack, Eq a, Show a) => a -> a -> IO ()
-  x `shouldBe` y =
-    when (x /= y) do
-      error $ show x <> " /= " <> show y
+  theTest :: (forall a. AppEnv -> AppM a -> IO a) -> IO ()
+  theTest runTransaction = withAppEnv \appEnv -> do
+    (ms1, ms2, ms3, ms4, ms5, ms6) <- do
+      Example.PgSimple.withHandle \pgSimpleDB -> do
+        Example.PgQuery.withHandle \pgQueryDB -> do
+          Example.Squeal.withHandle \squealDB -> do
+            runTransaction appEnv do
+              demo pgSimpleDB pgQueryDB squealDB
+    ms1 `shouldBe` Just "pg-simple: hi"
+    ms2 `shouldBe` Just "pg-query: sup"
+    ms3 `shouldBe` Just "pg-query: wut"
+    ms4 `shouldBe` Just "squeal: nuthin"
+    ms5 `shouldBe` Just "squeal: ye"
+    ms6 `shouldBe` Just "squeal: k bye"
+    putStrLn "Success!"
 
 type AppM = TxM AppEnv
 
@@ -66,7 +69,6 @@ type AppEnv =
   HEnv
     '[ PG.Simple.Connection
      , Logger
-     , SquealSchemas Example.Squeal.Schemas
      , SquealConnection
      ]
 
@@ -87,9 +89,10 @@ demo pgSimpleDB pgQueryDB squealDB = do
   (k2, k3) <- Example.PgQuery.insertTwoMessages pgQueryDB "pg-query: sup" "pg-query: wut"
   ms2 <- Example.PgSimple.fetchMessage pgSimpleDB k2
   (ms1, ms3) <- Example.PgQuery.fetchTwoMessages pgQueryDB k1 k3
-  (k4, k5, k6) <- Example.Squeal.insertThreeMessages squealDB "squeal: nuthin" "squeal: ye" "squeal: k bye"
-  (ms4, ms5, ms6) <- Example.Squeal.fetchThreeMessages squealDB k4 k5 k6
-  pure (ms1, ms2, ms3, ms4, ms5, ms6)
+  fromSquealTxM do
+    (k4, k5, k6) <- Example.Squeal.insertThreeMessages squealDB "squeal: nuthin" "squeal: ye" "squeal: k bye"
+    (ms4, ms5, ms6) <- Example.Squeal.fetchThreeMessages squealDB k4 k5 k6
+    pure (ms1, ms2, ms3, ms4, ms5, ms6)
 
 withAppEnv :: (AppEnv -> IO a) -> IO a
 withAppEnv f = do
@@ -114,7 +117,6 @@ withAppEnv f = do
       g $ HEnv.fromTuple
         ( simpleConn
         , logger
-        , SquealSchemas @Example.Squeal.Schemas
         , squealConn
         )
 
