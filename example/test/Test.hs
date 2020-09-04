@@ -19,7 +19,7 @@ import Control.Monad.Logger (LoggingT(LoggingT), runStderrLoggingT)
 import Database.PostgreSQL.Tx (TxM)
 import Database.PostgreSQL.Tx.HEnv (HEnv)
 import Database.PostgreSQL.Tx.Query (Logger)
-import Database.PostgreSQL.Tx.Squeal (SquealConnection, fromSquealTxM)
+import Database.PostgreSQL.Tx.Squeal (SquealConnection)
 import Test.Hspec
 import qualified Database.PostgreSQL.Simple as PG.Simple
 import qualified Database.PostgreSQL.Tx.HEnv as HEnv
@@ -89,10 +89,9 @@ demo pgSimpleDB pgQueryDB squealDB = do
   (k2, k3) <- Example.PgQuery.insertTwoMessages pgQueryDB "pg-query: sup" "pg-query: wut"
   ms2 <- Example.PgSimple.fetchMessage pgSimpleDB k2
   (ms1, ms3) <- Example.PgQuery.fetchTwoMessages pgQueryDB k1 k3
-  fromSquealTxM do
-    (k4, k5, k6) <- Example.Squeal.insertThreeMessages squealDB "squeal: nuthin" "squeal: ye" "squeal: k bye"
-    (ms4, ms5, ms6) <- Example.Squeal.fetchThreeMessages squealDB k4 k5 k6
-    pure (ms1, ms2, ms3, ms4, ms5, ms6)
+  (k4, k5, k6) <- Example.Squeal.insertThreeMessages squealDB "squeal: nuthin" "squeal: ye" "squeal: k bye"
+  (ms4, ms5, ms6) <- Example.Squeal.fetchThreeMessages squealDB k4 k5 k6
+  pure (ms1, ms2, ms3, ms4, ms5, ms6)
 
 withAppEnv :: (AppEnv -> IO a) -> IO a
 withAppEnv f = do

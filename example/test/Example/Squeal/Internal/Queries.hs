@@ -27,13 +27,12 @@ withHandle :: (DB.Handle -> IO a) -> IO a
 withHandle = Exception.bracket new DB.close
 
 insertThreeMessages
-  :: String -> String -> String -> DB.M (Int, Int, Int)
-insertThreeMessages s1 s2 s3 = do
+  :: String -> String -> String -> SquealM (Int, Int, Int)
+insertThreeMessages s1 s2 s3 = fromSquealTxM do
   go >>= \case
     [k1, k2, k3] -> pure (k1, k2, k3)
     rows -> error $ "Expected exactly 3 rows, got " <> show (length rows)
   where
-  go :: DB.M [Int]
   go = executeParams stmt (s1, s2, s3) >>= getRows
 
   stmt :: Statement Schemas (String, String, String) Int
@@ -52,8 +51,8 @@ insertThreeMessages s1 s2 s3 = do
       (Returning_ #id)
 
 fetchThreeMessages
-  :: Int -> Int -> Int -> DB.M (Maybe String, Maybe String, Maybe String)
-fetchThreeMessages k1 k2 k3 = do
+  :: Int -> Int -> Int -> SquealM (Maybe String, Maybe String, Maybe String)
+fetchThreeMessages k1 k2 k3 = fromSquealTxM do
   rows <- go
   pure
     ( lookup k1 rows
@@ -61,7 +60,6 @@ fetchThreeMessages k1 k2 k3 = do
     , lookup k3 rows
     )
   where
-  go :: DB.M [(Int, String)]
   go = executeParams stmt params >>= getRows
 
   params :: (Int32, Int32, Int32)
