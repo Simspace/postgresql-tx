@@ -65,7 +65,7 @@ newtype SquealTxM' (db :: SchemasType) r a =
 -- transaction, so this instance generates a type error when client code tries
 -- to call 'liftIO'.
 --
--- Note that specialize this instance for 'SquealTxM'' rather than derive it
+-- Note that we specialize this instance for 'SquealTxM'' rather than derive it
 -- via newtype so we can provide a better error message.
 --
 -- @since 0.2.0.0
