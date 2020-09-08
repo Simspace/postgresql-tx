@@ -6,6 +6,7 @@ packages:
 - monad-logger
 - persistent
 - query
+- random
 - simple
 - squeal
 - squeal/compat/simple
