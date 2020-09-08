@@ -37,22 +37,22 @@ type SquealEnv r =
 -- @since 0.2.0.0
 type SquealM a = forall r. (SquealEnv r) => TxM r a
 
--- | Alias for 'SquealTxM'' but has the 'SquealEnv' constraint applied to @r@
--- and uses @db@ for both @db0@ and @db1@ since this is the common case.
+-- | Alias for 'SquealTxM'' but has the 'SquealEnv' constraint applied to @r@.
 --
 -- @since 0.2.0.0
 type SquealTxM (db :: SchemasType) a =
-  forall r. (SquealEnv r) => SquealTxM' db db r a
+  forall r. (SquealEnv r) => SquealTxM' db r a
 
 -- | A newtype wrapper around 'TxM' which includes the @squeal@ 'SchemasType'
--- parameters @db0@ and @db1@. These are used only as type information.
+-- parameter @db@. This is used only as type information.
 -- You can easily convert 'TxM' to and from 'SquealTxM'' by using the
 -- 'SquealTxM'' constructor and 'fromSquealTxM' function, respectively.
 --
--- In practice, you will likely prefer to use the 'SquealTxM' type alias.
+-- In practice, you will likely prefer to use the 'SquealTxM' type alias
+-- as it includes the 'SquealEnv' constraint on @r@.
 --
 -- @since 0.2.0.0
-newtype SquealTxM' (db0 :: SchemasType) (db1 :: SchemasType) r a =
+newtype SquealTxM' (db :: SchemasType) r a =
   SquealTxM
     { -- | Convert a 'SquealTxM'' to a 'TxM'.
       --
@@ -72,7 +72,7 @@ newtype SquealTxM' (db0 :: SchemasType) (db1 :: SchemasType) r a =
 instance
   ( TypeError
       ('Text "MonadIO is banned in SquealTxM'; use 'SquealTxM . unsafeRunIOInTxM' if you are sure this is safe IO")
-  ) => MonadIO (SquealTxM' db0 db1 r)
+  ) => MonadIO (SquealTxM' db r)
   where
   liftIO = undefined
 
