@@ -5,9 +5,6 @@
 
 packages:
 - completed:
-    cabal-file:
-      size: 4959
-      sha256: 8891f4eea893607c6e500d73f5f095e11f5bc7c0c20467e6b9040a3e1be039a5
     name: postgresql-query
     version: 3.5.0
     git: https://github.com/Simspace/postgresql-query
@@ -19,22 +16,22 @@ packages:
     git: https://github.com/Simspace/postgresql-query
     commit: b45346d7af5a5de6f083349ac1fcee830afe4112
 - completed:
-    hackage: squeal-postgresql-0.6.0.2@sha256:2bd808a80c8c67da612049908152134b5d70650303239c6754ed0cf1dfab5305,5624
+    hackage: squeal-postgresql-0.7.0.1@sha256:dee79b7d3efa0ac62a84f4cbb8c8101f668efab8e38214e0214dd82a261cf4e1,5916
     pantry-tree:
-      size: 5567
-      sha256: 670f0e300c6c1fef9b0d281018b2dc8a7f48f5c890ba28a942a53c0357a7cd53
+      size: 5824
+      sha256: abaa6e041a6fe0e92f96082bdbdc0037ccd61fc45c56b20c90e3c765ab3e48e7
   original:
-    hackage: squeal-postgresql-0.6.0.2
+    hackage: squeal-postgresql-0.7.0.1
 - completed:
-    hackage: free-categories-0.2.0.0@sha256:2d248c669140cf82324569eaf90406c7c9d4a510088aca1979c9bd411bc5980c,855
+    hackage: free-categories-0.2.0.2@sha256:ce634c030c1dd9a40d101166876ae1d80fb6e4cb02c1755e2cefbcd74a161a69,855
     pantry-tree:
-      size: 521
-      sha256: af05c360575925cbb741acfc8daf527ede3b17bf6cc33b25b699821753f545f2
+      size: 522
+      sha256: 0d1d7cb64f28f61dc2e1efd7225a4ec0f8cf5a58e170d33ecbc637288fde4d82
   original:
-    hackage: free-categories-0.2.0.0
+    hackage: free-categories-0.2.0.2
 snapshots:
 - completed:
-    size: 491387
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/15/6.yaml
-    sha256: 8d81505a6de861e167a58534ab62330afb75bfa108735c7db1204f7ef2a39d79
-  original: lts-15.6
+    size: 532386
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/16/17.yaml
+    sha256: d3ee1ae797cf63189c95cf27f00700304946c5cb3c1e6a82001cd6584a221e1b
+  original: lts-16.17
