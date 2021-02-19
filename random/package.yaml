@@ -1,0 +1,41 @@
+name:                postgresql-tx-random
+version:             0.2.0.0
+github:              "simspace/postgresql-tx"
+license:             BSD3
+license-file:        LICENSE.md
+author:              "Cary Robbins"
+maintainer:          "carymrobbins@gmail.com"
+copyright:           "2020 SimSpace"
+synopsis:            postgresql-tx interfacing for use with random and MonadRandom.
+category:            Database
+description:         Please see the README on GitHub at <https://github.com/simspace/postgresql-tx#readme>
+
+extra-source-files:
+- CHANGELOG.md
+- LICENSE.md
+- package.yaml
+
+ghc-options:
+  - -Wall
+
+dependencies:
+- base >= 4.7 && < 5
+- postgresql-tx >= 0.3.0.0 && < 0.4
+- MonadRandom >= 0.5.2 && < 0.6
+- random >= 1.1 && < 1.2
+
+library:
+  source-dirs: src
+
+tests:
+  postgresql-tx-random-tests:
+    main: Test.hs
+    source-dirs:
+    - test
+    dependencies:
+    - postgresql-tx-random
+    - hspec
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - '"-with-rtsopts=-N -T"'
