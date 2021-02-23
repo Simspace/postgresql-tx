@@ -1,0 +1,12 @@
+testdata/MissingHEnv.hs:7:18: error:
+    • Int expected in HEnv '[Char, Bool]
+    • In the expression: select h
+      In an equation for ‘testMissingEnv’:
+          testMissingEnv
+            = select h
+            where
+                h :: HEnv '[Char, Bool]
+                h = fromGeneric ('a', True)
+  |
+7 | testMissingEnv = select h
+  |                  ^^^^^^^^

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5c457d0de45e8cf86de990a2eb6556e120634ecff03b1ad0247e70269cce27a2
+-- hash: 9ab956f18c9896d7c29f180a4be02ca2dac28d319be1fdf227dd2c88f82224ef
 
 name:           postgresql-tx-squeal-compat-simple
 version:        0.2.0.1
@@ -31,6 +31,7 @@ source-repository head
 library
   exposed-modules:
       Database.PostgreSQL.Tx.Squeal.Compat.Simple
+      Database.PostgreSQL.Tx.Squeal.Compat.Simple.Internal
   other-modules:
       Paths_postgresql_tx_squeal_compat_simple
   hs-source-dirs:
@@ -39,5 +40,6 @@ library
   build-depends:
       base >=4.7 && <5
     , postgresql-simple >=0.6.2 && <0.7
+    , postgresql-tx >=0.3.0.0 && <0.4
     , postgresql-tx-squeal >=0.3.0.0 && <0.4
   default-language: Haskell2010

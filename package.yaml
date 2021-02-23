@@ -15,6 +15,7 @@ extra-source-files:
 - LICENSE.md
 - package.yaml
 - README.md
+- testdata/**
 
 ghc-options:
   - -Wall
@@ -25,3 +26,17 @@ dependencies:
 
 library:
   source-dirs: src
+
+tests:
+  postgresql-tx-tests:
+    main: Test.hs
+    source-dirs:
+    - test
+    dependencies:
+    - postgresql-tx
+    - hspec
+    - process
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - '"-with-rtsopts=-N -T"'

@@ -1,0 +1,12 @@
+testdata/DuplicateHEnv.hs:7:20: error:
+    • Int duplicated in HEnv '[Int, Char, Bool, Int]
+    • In the expression: select h
+      In an equation for ‘testDuplicateEnv’:
+          testDuplicateEnv
+            = select h
+            where
+                h :: HEnv '[Int, Char, Bool, Int]
+                h = fromGeneric (1, 'a', True, 2)
+  |
+7 | testDuplicateEnv = select h
+  |                    ^^^^^^^^

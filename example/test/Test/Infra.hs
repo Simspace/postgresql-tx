@@ -1,5 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -57,7 +58,7 @@ testBackend' Backend {..} extraTests = do
       it "withTransactionMode RepeatableRead" do
         demoTest (withTransactionMode transactionMode'RepeatableRead)
       describe "withTransactionSerializable" do
-        it "retries when appropriate" $ withAppEnv \appEnv -> do
+        it "retries when appropriate" $ testCase \appEnv -> do
           counter <- newIORef (0 :: Int)
           withTransactionSerializable appEnv do
             -- Increment our counter and get its new value.
@@ -68,34 +69,34 @@ testBackend' Backend {..} extraTests = do
               1 -> raiseErrCode "deadlock_detected"
               _ -> pure ()
           readIORef counter `shouldReturn` 2
-        it "does not retry when not appropriate" $ withAppEnv \appEnv -> do
+        it "does not retry when not appropriate" $ testCase \appEnv -> do
           expectTxErrcode "23503" do
             withTransactionSerializable appEnv do
               raiseErrCode "foreign_key_violation"
     describe "TxException" do
-      it "wraps serialization_failure" $ withAppEnv \appEnv -> do
+      it "wraps serialization_failure" $ testCase \appEnv -> do
         expectTxErrcode "40001" do
           withTransaction appEnv do
             raiseErrCode "serialization_failure"
-      it "wraps deadlock_detected" $ withAppEnv \appEnv -> do
+      it "wraps deadlock_detected" $ testCase \appEnv -> do
         expectTxErrcode "40P01" do
           withTransaction appEnv do
             raiseErrCode "deadlock_detected"
-      it "wraps other applicable errors" $ withAppEnv \appEnv -> do
+      it "wraps other applicable errors" $ testCase \appEnv -> do
         expectTxErrcode "23514" do
           withTransaction appEnv do
             raiseErrCode "check_violation"
-      it "wraps applicable errors with no specified error code" $ withAppEnv \appEnv -> do
+      it "wraps applicable errors with no specified error code" $ testCase \appEnv -> do
         expectTxErrcode "P0001" do
           withTransaction appEnv do
             raiseException "oh noes" Nothing
-      it "doesn't wrap inapplicable exceptions" $ withAppEnv \appEnv -> do
+      it "doesn't wrap inapplicable exceptions" $ testCase \appEnv -> do
         let e = userError "boom"
         let go = void $ withTransaction appEnv $ throwExceptionTx e
         try go `shouldReturn` Left e
 
 demoTest :: (forall a. AppEnv -> AppM a -> IO a) -> IO ()
-demoTest runTransaction = withAppEnv \appEnv -> do
+demoTest runTransaction = testCase \appEnv -> do
   (ms1, ms2, ms3, ms4, ms5, ms6) <- do
     Example.PgSimple.withHandle \pgSimpleDB -> do
       Example.PgQuery.withHandle \pgQueryDB -> do
@@ -113,10 +114,15 @@ type AppM = TxM AppEnv
 
 type AppEnv =
   HEnv
-    '[ PG.Simple.Connection
+    '[ SquealConnection
+     , PG.Simple.Connection
      , Logger
-     , SquealConnection
      ]
+
+withAppEnv :: PG.Simple.Connection -> Logger -> (AppEnv -> IO a) -> IO a
+withAppEnv simpleConn logger = do
+  Tx.Squeal.Compat.Simple.usingSquealConnection
+    (HEnv.fromGeneric (simpleConn, logger))
 
 demo
   :: Example.PgSimple.Handle AppM
@@ -139,10 +145,11 @@ demo pgSimpleDB pgQueryDB squealDB = do
   (ms4, ms5, ms6) <- Example.Squeal.fetchThreeMessages squealDB k4 k5 k6
   pure (ms1, ms2, ms3, ms4, ms5, ms6)
 
-withAppEnv :: (AppEnv -> IO a) -> IO a
-withAppEnv f = do
+testCase :: (AppEnv -> IO a) -> IO a
+testCase f = do
   conn <- PG.Simple.connectPostgreSQL "dbname=postgresql-tx-example"
-  withEnv conn \env -> do
+  let logger = toLogger runStderrLoggingT
+  withAppEnv conn logger \env -> do
     Tx.Unsafe.unsafeRunTxM env do
       void $ Tx.Query.pgExecute [Tx.Query.sqlExp|
         drop table if exists foo
@@ -168,16 +175,6 @@ withAppEnv f = do
         $$ language plpgsql;
       |]
     f env
-  where
-  logger = toLogger runStderrLoggingT
-
-  withEnv simpleConn g = do
-    Tx.Squeal.Compat.Simple.withSquealConnection simpleConn \squealConn -> do
-      g $ HEnv.fromTuple
-        ( simpleConn
-        , logger
-        , squealConn
-        )
 
 expectTxErrcode :: (HasCallStack) => String -> IO () -> IO ()
 expectTxErrcode e io = do
