@@ -6,11 +6,13 @@ module Database.PostgreSQL.Tx.Query
   , Logger
   , module Database.PostgreSQL.Tx.Query
   , module Database.PostgreSQL.Tx.Query.Internal.Reexport
+  , module Database.PostgreSQL.Tx.Simple.Connection
   ) where
 
 import Control.Exception (Exception)
 import Data.Int (Int64)
 import Database.PostgreSQL.Tx (TxM)
+import Database.PostgreSQL.Tx.Simple.Connection
 import Database.PostgreSQL.Tx.Query.Internal
 import Database.PostgreSQL.Tx.Query.Internal.Reexport
 import GHC.Stack (HasCallStack)

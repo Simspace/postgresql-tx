@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 63dc040f3a77b23a293a966e4e8c524dd17bd50ad4cbb292b94c18b92d9ab8ef
+-- hash: eef6be6d09f3f0be94a523507c0ddd97f5033e4668bd4723aea371b7db5575a5
 
 name:           postgresql-tx-example
 version:        0.0.0.0
@@ -59,6 +59,5 @@ test-suite postgresql-tx-example-tests
     , postgresql-tx-query
     , postgresql-tx-simple
     , postgresql-tx-squeal
-    , postgresql-tx-squeal-compat-simple
     , squeal-postgresql
   default-language: Haskell2010

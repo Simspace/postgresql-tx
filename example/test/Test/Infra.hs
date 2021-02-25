@@ -20,15 +20,13 @@ import Data.IORef (atomicModifyIORef', newIORef, readIORef)
 import Data.Proxy (Proxy(Proxy))
 import Database.PostgreSQL.Tx (TxException(TxException), TxM, throwExceptionTx)
 import Database.PostgreSQL.Tx.HEnv (HEnv)
-import Database.PostgreSQL.Tx.Query (Logger)
-import Database.PostgreSQL.Tx.Squeal (SquealConnection)
+import Database.PostgreSQL.Tx.Query (Logger, LibPQConnection, PgSimpleConnection)
 import GHC.TypeLits (KnownSymbol, Symbol, symbolVal)
 import Test.Hspec (HasCallStack, Spec, describe, expectationFailure, it, pendingWith, shouldBe, shouldReturn)
 import qualified Database.PostgreSQL.Simple as PG.Simple
 import qualified Database.PostgreSQL.Tx as Tx
 import qualified Database.PostgreSQL.Tx.HEnv as HEnv
 import qualified Database.PostgreSQL.Tx.Query as Tx.Query
-import qualified Database.PostgreSQL.Tx.Squeal.Compat.Simple as Tx.Squeal.Compat.Simple
 import qualified Database.PostgreSQL.Tx.Unsafe as Tx.Unsafe
 import qualified Example.PgQuery
 import qualified Example.PgSimple
@@ -114,15 +112,16 @@ type AppM = TxM AppEnv
 
 type AppEnv =
   HEnv
-    '[ SquealConnection
-     , PG.Simple.Connection
+    '[ PgSimpleConnection
+     , LibPQConnection
      , Logger
      ]
 
 withAppEnv :: PG.Simple.Connection -> Logger -> (AppEnv -> IO a) -> IO a
 withAppEnv simpleConn logger = do
-  Tx.Squeal.Compat.Simple.usingSquealConnection
-    (HEnv.fromGeneric (simpleConn, logger))
+  Tx.Query.usingPgSimpleConnection
+    simpleConn
+    (HEnv.singleton logger)
 
 demo
   :: Example.PgSimple.Handle AppM

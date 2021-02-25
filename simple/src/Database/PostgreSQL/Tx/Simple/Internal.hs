@@ -15,6 +15,7 @@ module Database.PostgreSQL.Tx.Simple.Internal
 
 import Data.Kind (Constraint)
 import Database.PostgreSQL.Tx (TxEnv, TxException, TxM, askTxEnv, mapExceptionTx)
+import Database.PostgreSQL.Tx.Simple.Connection (PgSimpleConnection(unsafeGetPgSimpleConnection))
 import Database.PostgreSQL.Tx.Unsafe (unsafeMkTxException, unsafeMksTxM, unsafeRunIOInTxM, unsafeRunTxM)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Database.PostgreSQL.Simple as Simple
@@ -22,7 +23,7 @@ import qualified Database.PostgreSQL.Simple as Simple
 -- | Runtime environment needed to run @postgresql-simple@ via @postgresql-tx@.
 --
 -- @since 0.2.0.0
-type PgSimpleEnv r = (TxEnv Simple.Connection r) :: Constraint
+type PgSimpleEnv r = (TxEnv PgSimpleConnection r) :: Constraint
 
 -- | Monad type alias for running @postgresql-simple@ via @postgresql-tx@.
 --
@@ -35,7 +36,7 @@ unsafeRunTransaction
   -> r -> TxM r a -> IO a
 unsafeRunTransaction f r x = do
   unsafeRunTxM r do
-    conn <- askTxEnv
+    conn <- unsafeGetPgSimpleConnection <$> askTxEnv
     unsafeRunIOInTxM $ f conn (unsafeRunTxM r x)
 
 fromSqlError :: Simple.SqlError -> TxException
@@ -46,7 +47,7 @@ unsafeFromPgSimple
   -> PgSimpleM x
 unsafeFromPgSimple f =
   mapExceptionTx (Just . fromSqlError) do
-    unsafeMksTxM f
+    unsafeMksTxM (f . unsafeGetPgSimpleConnection)
 
 unsafeFromPgSimple1
   :: (Simple.Connection -> a1 -> IO x)

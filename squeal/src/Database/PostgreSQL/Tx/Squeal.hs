@@ -11,15 +11,15 @@ module Database.PostgreSQL.Tx.Squeal
   , SquealM
   , SquealTxM'(SquealTxM, fromSquealTxM)
   , SquealTxM
-  , SquealConnection
-  , mkSquealConnection
   , module Database.PostgreSQL.Tx.Squeal
   , module Database.PostgreSQL.Tx.Squeal.Internal.Reexport
+  , module Database.PostgreSQL.Tx.LibPQ.Connection
   ) where
 
 import Control.Exception (Exception)
 import Data.ByteString (ByteString)
 import Database.PostgreSQL.Tx (TxM, shouldRetryTx)
+import Database.PostgreSQL.Tx.LibPQ.Connection
 import Database.PostgreSQL.Tx.Squeal.Internal
 import Database.PostgreSQL.Tx.Squeal.Internal.Reexport
 import qualified Database.PostgreSQL.LibPQ as LibPQ

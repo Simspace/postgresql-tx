@@ -38,8 +38,10 @@ infixr 2 `Cons`
 singleton :: a -> HEnv '[a]
 singleton = (`Cons` Nil)
 
--- | 'TxEnv' instance for 'HEnv'; selects the first @a@ in the 'HEnv'
+-- | 'TxEnv' instance for 'HEnv'; selects the @a@ in the 'HEnv'
 -- and makes it available via the runtime environment.
+-- If there are multiple @a@ values, it will be rejected
+-- by the compiler due to 'UniqueElem'.
 --
 -- @since 0.2.0.0
 instance (UniqueElem a xs) => TxEnv a (HEnv xs) where

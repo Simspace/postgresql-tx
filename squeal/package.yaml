@@ -24,6 +24,7 @@ dependencies:
 - generics-sop >= 0.5.1.0 && < 0.6
 - postgresql-libpq >= 0.9.4.2 && < 0.10
 - postgresql-tx >= 0.3.0.0 && < 0.4
+- postgresql-tx-libpq
 - records-sop >= 0.1.0.3 && < 0.2
 - squeal-postgresql >= 0.7.0.1 && < 0.8
 - unliftio >= 0.2.13 && < 0.3

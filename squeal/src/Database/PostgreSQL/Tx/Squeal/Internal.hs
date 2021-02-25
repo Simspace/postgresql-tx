@@ -23,12 +23,12 @@ import Control.Exception (Exception(fromException))
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import Data.Kind (Constraint)
 import Database.PostgreSQL.Tx (TxEnv, TxException, TxM, askTxEnv, mapExceptionTx)
+import Database.PostgreSQL.Tx.LibPQ.Connection
 import Database.PostgreSQL.Tx.Squeal.Internal.Reexport
 import Database.PostgreSQL.Tx.Unsafe (unsafeLookupTxEnvIO, unsafeMkTxException, unsafeRunIOInTxM, unsafeRunTxM)
 import GHC.TypeLits (ErrorMessage(Text), TypeError)
 import UnliftIO (MonadUnliftIO)
 import qualified Data.ByteString.Char8 as Char8
-import qualified Database.PostgreSQL.LibPQ as LibPQ
 import qualified Squeal.PostgreSQL as Squeal
 import qualified UnliftIO
 
@@ -36,7 +36,7 @@ import qualified UnliftIO
 --
 -- @since 0.2.0.0
 type SquealEnv r =
-  (TxEnv SquealConnection r) :: Constraint
+  (TxEnv LibPQConnection r) :: Constraint
 
 -- | Monad type alias for running @squeal-postgresql@ via @postgresql-tx@.
 --
@@ -82,23 +82,6 @@ instance
   where
   liftIO = undefined
 
--- | Used in the 'SquealEnv' to specify the 'LibPQ.Connection' to use.
--- Should produce the same 'LibPQ.Connection' if called multiple times
--- in the same transaction. Usually you will want to use 'mkSquealConnection'
--- to get one.
---
--- @since 0.2.0.0
-newtype SquealConnection =
-  UnsafeSquealConnection
-    { unsafeGetLibPQConnection :: IO LibPQ.Connection
-    }
-
--- | Construct a 'SquealConnection' from a 'LibPQ.Connection'.
---
--- @since 0.2.0.0
-mkSquealConnection :: LibPQ.Connection -> SquealConnection
-mkSquealConnection conn = UnsafeSquealConnection (pure conn)
-
 fromSquealException :: SquealException -> TxException
 fromSquealException =
   unsafeMkTxException \case
@@ -109,9 +92,8 @@ unsafeSquealIOTxM
   :: PQ db db IO a
   -> SquealTxM db a
 unsafeSquealIOTxM (PQ f) = SquealTxM $ mapExceptionTx (Just . fromSquealException) do
-  UnsafeSquealConnection { unsafeGetLibPQConnection } <- askTxEnv
+  conn <- unsafeGetLibPQConnection <$> askTxEnv
   unsafeRunIOInTxM do
-    conn <- unsafeGetLibPQConnection
     K a <- f (K conn)
     pure a
 
@@ -137,8 +119,7 @@ unsafeRunSquealTransaction
   -> TxM r a
   -> IO a
 unsafeRunSquealTransaction f r x = do
-  UnsafeSquealConnection { unsafeGetLibPQConnection } <- unsafeLookupTxEnvIO r
-  conn <- unsafeGetLibPQConnection
+  conn <- unsafeGetLibPQConnection <$> unsafeLookupTxEnvIO r
   flip evalPQ (K conn)
     $ f
     $ PQ \_ -> K <$> unsafeRunTxM r x

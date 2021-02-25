@@ -4,17 +4,17 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 9ab956f18c9896d7c29f180a4be02ca2dac28d319be1fdf227dd2c88f82224ef
+-- hash: cb5f41c463e289071a82e7e7b54533013536964fc4dc17601c79dd2877ef0bb0
 
-name:           postgresql-tx-squeal-compat-simple
-version:        0.2.0.1
-synopsis:       Connection interop from postgresql-simple connections to postgresql-libpq connections.
+name:           postgresql-tx-libpq
+version:        0.2.0.0
+synopsis:       postgresql-tx interfacing for use with postgresql-libpq.
 description:    Please see the README on GitHub at <https://github.com/simspace/postgresql-tx#readme>
 category:       Database
 homepage:       https://github.com/simspace/postgresql-tx#readme
 bug-reports:    https://github.com/simspace/postgresql-tx/issues
-author:         Jason Shipman
-maintainer:     jasonpshipman@gmail.com
+author:         Cary Robbins
+maintainer:     carymrobbins@gmail.com
 copyright:      2020 SimSpace
 license:        BSD3
 license-file:   LICENSE.md
@@ -30,16 +30,14 @@ source-repository head
 
 library
   exposed-modules:
-      Database.PostgreSQL.Tx.Squeal.Compat.Simple
-      Database.PostgreSQL.Tx.Squeal.Compat.Simple.Internal
+      Database.PostgreSQL.Tx.LibPQ.Connection
   other-modules:
-      Paths_postgresql_tx_squeal_compat_simple
+      Paths_postgresql_tx_libpq
   hs-source-dirs:
       src
   ghc-options: -Wall
   build-depends:
       base >=4.7 && <5
-    , postgresql-simple >=0.6.2 && <0.7
-    , postgresql-tx >=0.3.0.0 && <0.4
-    , postgresql-tx-squeal >=0.3.0.0 && <0.4
+    , postgresql-libpq
+    , postgresql-tx
   default-language: Haskell2010

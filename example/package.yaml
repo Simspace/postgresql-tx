@@ -24,7 +24,6 @@ dependencies:
 - postgresql-tx-query
 - postgresql-tx-simple
 - postgresql-tx-squeal
-- postgresql-tx-squeal-compat-simple
 - squeal-postgresql
 
 tests:

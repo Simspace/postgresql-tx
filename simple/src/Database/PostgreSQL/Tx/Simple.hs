@@ -4,12 +4,16 @@ module Database.PostgreSQL.Tx.Simple
   ( PgSimpleEnv
   , PgSimpleM
   , module Database.PostgreSQL.Tx.Simple
+  , module Database.PostgreSQL.Tx.Simple.Connection
+  , module Database.PostgreSQL.Tx.LibPQ.Connection
   ) where
 
 import Control.Exception (Exception)
 import Data.Int (Int64)
 import Database.PostgreSQL.Tx (TxM, shouldRetryTx)
+import Database.PostgreSQL.Tx.LibPQ.Connection
 import Database.PostgreSQL.Tx.Simple.Internal
+import Database.PostgreSQL.Tx.Simple.Connection
 import GHC.Stack (HasCallStack)
 import qualified Database.PostgreSQL.Simple as Simple
 import qualified Database.PostgreSQL.Simple.Transaction as Simple
