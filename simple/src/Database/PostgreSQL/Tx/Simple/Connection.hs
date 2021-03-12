@@ -19,7 +19,10 @@ newtype PgSimpleConnection = UnsafePgSimpleConnection
   }
 
 usingPgSimpleConnection
-  :: Connection
+  :: ( PgSimpleConnection `HEnv.NotElem` xs
+     , LibPQConnection `HEnv.NotElem` xs
+     )
+  => Connection
   -> HEnv xs
   -> (HEnv (PgSimpleConnection ': LibPQConnection ': xs) -> IO a)
   -> IO a

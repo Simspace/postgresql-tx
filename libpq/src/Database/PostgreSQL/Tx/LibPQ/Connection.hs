@@ -13,7 +13,9 @@ newtype LibPQConnection = UnsafeLibPQConnection
   { unsafeGetLibPQConnection :: Connection
   }
 
-usingLibPQConnection :: Connection -> HEnv xs -> (HEnv (LibPQConnection ': xs) -> IO a) -> IO a
+usingLibPQConnection
+  :: (LibPQConnection `HEnv.NotElem` xs)
+  => Connection -> HEnv xs -> (HEnv (LibPQConnection ': xs) -> IO a) -> IO a
 usingLibPQConnection conn henv action = do
   let libPQConn = UnsafeLibPQConnection conn
   let henv' = libPQConn `HEnv.Cons` henv

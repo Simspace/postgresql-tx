@@ -54,14 +54,18 @@ getTxRandom f = do
 -- | Adds the given 'StdGen' as a 'TxGen' to the given 'HEnv' to provide @random@ support.
 --
 -- @since 0.2.0.0
-usingTxGen :: StdGen -> HEnv xs -> (HEnv (TxGen ': xs) -> IO a) -> IO a
+usingTxGen
+  :: (TxGen `HEnv.NotElem` xs)
+  => StdGen -> HEnv xs -> (HEnv (TxGen ': xs) -> IO a) -> IO a
 usingTxGen g henv action = do
   withTxGen g \txGen -> action $ txGen `HEnv.Cons` henv
 
 -- | Adds a new 'TxGen' to the given 'HEnv' to provide @random@ support.
 --
 -- @since 0.2.0.0
-usingNewTxGen :: HEnv xs -> (HEnv (TxGen ': xs) -> IO a) -> IO a
+usingNewTxGen
+  :: (TxGen `HEnv.NotElem` xs)
+  => HEnv xs -> (HEnv (TxGen ': xs) -> IO a) -> IO a
 usingNewTxGen henv action = do
   withNewTxGen $ \txGen -> action $ txGen `HEnv.Cons` henv
 
