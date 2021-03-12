@@ -57,7 +57,26 @@ select = select'
 type UniqueElem a xs =
   ( Select a xs
   , UniqueElemGo a xs xs 'False
+  , AllUnique xs xs
   ) :: Constraint
+
+type family AllUnique (xs :: [*]) (orig :: [*]) :: Constraint where
+  AllUnique '[] orig = ()
+
+  AllUnique (x ': xs) orig =
+    ( NotDuplicated x xs orig
+    , AllUnique xs orig
+    )
+
+type family NotDuplicated (x :: *) (ys :: [*]) (orig :: [*]) :: Constraint where
+  NotDuplicated x '[] orig = ()
+  NotDuplicated x (x ': xs) orig =
+    TypeError
+      ( 'ShowType x
+          ':<>: 'Text " duplicated in HEnv "
+          ':<>: 'ShowType orig
+      )
+  NotDuplicated x (y ': ys) orig = NotDuplicated x ys orig
 
 -- | Constraint for proving that @a@ both exists in @xs@ and also is
 -- not duplicated.
@@ -93,6 +112,20 @@ instance Select a (a ': xs) where
 instance {-# OVERLAPPABLE #-} (Select a xs) => Select a (x ': xs) where
   select' (_ `Cons` xs) = select' xs
 
+-- | Internal type class for appending 'HEnv' values; useful for 'FromGeneric'.
+class Append xs ys where
+  type AppendList xs ys :: [*]
+  append :: HEnv xs -> HEnv ys -> HEnv (AppendList xs ys)
+
+instance Append '[] ys where
+  type AppendList '[] ys = ys
+  append _ ys = ys
+
+instance (Append xs ys) => Append (x ': xs) ys where
+  type AppendList (x ': xs) ys = x ': AppendList xs ys
+  append (x `Cons` xs) ys = x `Cons` append xs ys
+
+-- | Construct an 'HEnv' from a 'Generic' structure.
 fromGeneric :: (Generic i, FromGeneric (Rep i) o) => i -> HEnv o
 fromGeneric = fromGGeneric . from
 {-# INLINE fromGeneric #-}
@@ -117,8 +150,14 @@ instance FromGeneric (M1 S x (K1 R a)) '[a] where
   fromGGeneric (M1 (K1 a)) = singleton a
   {-# INLINE fromGGeneric #-}
 
-instance (FromGeneric g o) => FromGeneric (M1 S x (K1 R a) :*: g) (a ': o) where
-  fromGGeneric (M1 (K1 a) :*: t) = a `Cons` fromGGeneric t
+instance
+  ( FromGeneric i1 o1
+  , FromGeneric i2 o2
+  , Append o1 o2
+  , o ~ AppendList o1 o2
+  ) => FromGeneric (i1 :*: i2) o
+  where
+  fromGGeneric (f :*: g) = fromGGeneric f `append` fromGGeneric g
   {-# INLINE fromGGeneric #-}
 
 -- | Internal type class for constructing an 'HEnv' from a tuple.
