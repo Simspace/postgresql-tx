@@ -22,6 +22,7 @@ module Database.PostgreSQL.Tx.HEnv
   ) where
 
 import Data.Kind (Constraint)
+import Data.Proxy (Proxy(Proxy))
 import Database.PostgreSQL.Tx (TxEnv(lookupTxEnv))
 import GHC.Generics
 import GHC.TypeLits (ErrorMessage((:<>:), ShowType, Text), TypeError)
@@ -47,16 +48,15 @@ singleton = (`Cons` Nil)
 instance (UniqueElem a xs) => TxEnv a (HEnv xs) where
   lookupTxEnv = select
 
-select :: (UniqueElem a xs) => HEnv xs -> a
-select = select'
+select :: forall a xs. (UniqueElem a xs) => HEnv xs -> a
+select = select' (Proxy @xs)
 
 -- | Constraint for asserting that @a@ exists uniquely in the type list @xs@.
 -- Hides the 'Select' type class so it is closed from extension.
 --
 -- @since 0.4.0.0
 type UniqueElem a xs =
-  ( Select a xs
-  , UniqueElemGo a xs xs 'False
+  ( Select a xs xs
   , AllUnique xs xs
   ) :: Constraint
 
@@ -78,39 +78,26 @@ type family NotDuplicated (x :: *) (ys :: [*]) (orig :: [*]) :: Constraint where
       )
   NotDuplicated x (y ': ys) orig = NotDuplicated x ys orig
 
--- | Constraint for proving that @a@ both exists in @xs@ and also is
--- not duplicated.
-type family UniqueElemGo a (xs :: [*]) (orig :: [*]) (found :: Bool) :: Constraint where
-  UniqueElemGo x '[] orig 'True = ()
+-- | Internal type class for selecting the first @a@ in an 'HEnv'.
+-- Type class is not exported; if you need this as a constraint, use 'Elem'.
+class Select a xs (orig :: [*]) where
+  select' :: Proxy orig -> HEnv xs -> a
 
-  UniqueElemGo x '[] orig 'False =
-    TypeError
-      ( 'ShowType x
+instance Select a (a ': xs) orig where
+  select' _ (a `Cons` _) = a
+
+instance {-# OVERLAPPABLE #-} (Select a xs orig) => Select a (x ': xs) orig where
+  select' proxy (_ `Cons` xs) = select' proxy xs
+
+instance
+  ( TypeError
+      ( 'ShowType a
           ':<>: 'Text " expected in HEnv "
           ':<>: 'ShowType orig
       )
-
-  UniqueElemGo x (x ': xs) orig 'False = UniqueElemGo x xs orig 'True
-
-  UniqueElemGo x (x ': xs) orig 'True =
-    TypeError
-      ( 'ShowType x
-          ':<>: 'Text " duplicated in HEnv "
-          ':<>: 'ShowType orig
-      )
-
-  UniqueElemGo a (x ': xs) orig found = UniqueElemGo a xs orig found
-
--- | Internal type class for selecting the first @a@ in an 'HEnv'.
--- Type class is not exported; if you need this as a constraint, use 'Elem'.
-class Select a xs where
-  select' :: HEnv xs -> a
-
-instance Select a (a ': xs) where
-  select' (a `Cons` _) = a
-
-instance {-# OVERLAPPABLE #-} (Select a xs) => Select a (x ': xs) where
-  select' (_ `Cons` xs) = select' xs
+  ) => Select a '[] orig
+  where
+  select' = undefined
 
 -- | Internal type class for appending 'HEnv' values; useful for 'FromGeneric'.
 class Append xs ys where
