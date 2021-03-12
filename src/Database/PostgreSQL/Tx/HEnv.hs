@@ -14,7 +14,8 @@
 {-# LANGUAGE UndecidableSuperClasses #-}
 module Database.PostgreSQL.Tx.HEnv
   ( HEnv(Nil, Cons)
-  , UniqueElem
+  , Elem
+  , NotElem
   , select
   , singleton
   , fromGeneric
@@ -42,23 +43,33 @@ singleton = (`Cons` Nil)
 -- | 'TxEnv' instance for 'HEnv'; selects the @a@ in the 'HEnv'
 -- and makes it available via the runtime environment.
 -- If there are multiple @a@ values, it will be rejected
--- by the compiler due to 'UniqueElem'.
+-- by the compiler due to 'Elem'.
 --
 -- @since 0.2.0.0
-instance (UniqueElem a xs) => TxEnv a (HEnv xs) where
+instance (Elem a xs) => TxEnv a (HEnv xs) where
   lookupTxEnv = select
 
-select :: forall a xs. (UniqueElem a xs) => HEnv xs -> a
+select :: forall a xs. (Elem a xs) => HEnv xs -> a
 select = select' (Proxy @xs)
 
 -- | Constraint for asserting that @a@ exists uniquely in the type list @xs@.
 -- Hides the 'Select' type class so it is closed from extension.
 --
 -- @since 0.4.0.0
-type UniqueElem a xs =
+type Elem a xs =
   ( Select a xs xs
   , AllUnique xs xs
   ) :: Constraint
+
+-- | Constraint for asserting that @a@ does not exist in the type list @xs@.
+--
+-- @since 0.4.0.0
+type NotElem x xs =
+  NotElemGo x xs xs
+    ( 'ShowType x
+        ':<>: 'Text " exists in HEnv "
+        ':<>: 'ShowType xs
+    )
 
 type family AllUnique (xs :: [*]) (orig :: [*]) :: Constraint where
   AllUnique '[] orig = ()
@@ -68,15 +79,17 @@ type family AllUnique (xs :: [*]) (orig :: [*]) :: Constraint where
     , AllUnique xs orig
     )
 
-type family NotDuplicated (x :: *) (ys :: [*]) (orig :: [*]) :: Constraint where
-  NotDuplicated x '[] orig = ()
-  NotDuplicated x (x ': xs) orig =
-    TypeError
-      ( 'ShowType x
-          ':<>: 'Text " duplicated in HEnv "
-          ':<>: 'ShowType orig
-      )
-  NotDuplicated x (y ': ys) orig = NotDuplicated x ys orig
+type NotDuplicated x ys orig =
+  NotElemGo x ys orig
+    ( 'ShowType x
+        ':<>: 'Text " duplicated in HEnv "
+        ':<>: 'ShowType orig
+    )
+
+type family NotElemGo (x :: *) (ys :: [*]) (orig :: [*]) (m :: ErrorMessage) :: Constraint where
+  NotElemGo x '[] orig m = ()
+  NotElemGo x (x ': xs) orig m = TypeError m
+  NotElemGo x (y ': ys) orig m = NotElemGo x ys orig m
 
 -- | Internal type class for selecting the first @a@ in an 'HEnv'.
 -- Type class is not exported; if you need this as a constraint, use 'Elem'.

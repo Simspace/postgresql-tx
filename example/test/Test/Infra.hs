@@ -14,8 +14,7 @@ module Test.Infra where
 
 import Control.Exception (try)
 import Control.Monad (void)
-import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Logger (LoggingT(LoggingT), runStderrLoggingT)
+import Control.Monad.Logger (runStderrLoggingT)
 import Data.IORef (atomicModifyIORef', newIORef, readIORef)
 import Data.Proxy (Proxy(Proxy))
 import Database.PostgreSQL.Tx (TxException(TxException), TxM, throwExceptionTx)
@@ -117,11 +116,10 @@ type AppEnv =
      , Logger
      ]
 
-withAppEnv :: PG.Simple.Connection -> Logger -> (AppEnv -> IO a) -> IO a
-withAppEnv simpleConn logger = do
-  Tx.Query.usingPgSimpleConnection
-    simpleConn
-    (HEnv.singleton logger)
+withAppEnv :: PG.Simple.Connection -> (AppEnv -> IO a) -> IO a
+withAppEnv simpleConn action = do
+  Tx.Query.usingLoggingT runStderrLoggingT HEnv.Nil \henv0 ->
+    Tx.Query.usingPgSimpleConnection simpleConn henv0 action
 
 demo
   :: Example.PgSimple.Handle AppM
@@ -147,8 +145,7 @@ demo pgSimpleDB pgQueryDB squealDB = do
 testCase :: (AppEnv -> IO a) -> IO a
 testCase f = do
   conn <- PG.Simple.connectPostgreSQL "dbname=postgresql-tx-example"
-  let logger = toLogger runStderrLoggingT
-  withAppEnv conn logger \env -> do
+  withAppEnv conn \env -> do
     Tx.Unsafe.unsafeRunTxM env do
       void $ Tx.Query.pgExecute [Tx.Query.sqlExp|
         drop table if exists foo
@@ -180,10 +177,6 @@ expectTxErrcode e io = do
   try io >>= \case
     Right _ -> expectationFailure "No exception was thrown"
     Left TxException { errcode } -> errcode `shouldBe` Just e
-
-toLogger :: (LoggingT IO () -> IO ()) -> Logger
-toLogger f loc src lvl msg =
-  f $ LoggingT \logger -> liftIO $ logger loc src lvl msg
 
 -- | Can be used in a field definition for 'Backend' in the event
 -- that the backend does not yet support some feature without

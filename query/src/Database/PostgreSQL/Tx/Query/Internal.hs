@@ -23,11 +23,11 @@ import Control.Monad.Reader (ReaderT(ReaderT))
 import Control.Monad.Trans.Control (MonadBaseControl)
 import Data.Kind (Constraint)
 import Database.PostgreSQL.Tx (TxEnvs, TxM, askTxEnv, mapExceptionTx)
-import Database.PostgreSQL.Tx.Simple.Connection (PgSimpleConnection(unsafeGetPgSimpleConnection))
+import Database.PostgreSQL.Tx.MonadLogger (Logger(Logger, getLogger))
 import Database.PostgreSQL.Tx.Query.Internal.Reexport
+import Database.PostgreSQL.Tx.Simple.Connection (PgSimpleConnection(unsafeGetPgSimpleConnection))
 import Database.PostgreSQL.Tx.Unsafe (unsafeMkTxM, unsafeRunIOInTxM, unsafeRunTxM, unsafeUnTxM)
 import GHC.Stack (HasCallStack)
-import qualified Database.PostgreSQL.Tx.MonadLogger
 import qualified Database.PostgreSQL.Tx.Simple.Internal as Tx.Simple.Internal
 
 -- | Runtime environment needed to run @postgresql-query@ via @postgresql-tx@.
@@ -39,11 +39,6 @@ type PgQueryEnv r = (TxEnvs '[PgSimpleConnection, Logger] r) :: Constraint
 --
 -- @since 0.2.0.0
 type PgQueryM a = forall r. (PgQueryEnv r) => TxM r a
-
--- | Re-export of 'Database.PostgreSQL.Tx.MonadLogger.Logger'.
---
--- @since 0.1.0.0
-type Logger = Database.PostgreSQL.Tx.MonadLogger.Logger
 
 -- | Analogous to 'TxM' but allows for 'IO'. Useful so we can have
 -- instances which are required to run @postgresql-query@ functions.
@@ -65,11 +60,11 @@ instance (PgQueryEnv r) => HasPostgres (UnsafePgQueryIO r) where
 instance (PgQueryEnv r) => MonadLogger (UnsafePgQueryIO r) where
   monadLoggerLog loc src lvl msg = do
     unsafeToPgQueryIO do
-      logger <- askTxEnv
+      Logger logger <- askTxEnv
       unsafeRunIOInTxM $ logger loc src lvl (toLogStr msg)
 
 instance (PgQueryEnv r) => MonadLoggerIO (UnsafePgQueryIO r) where
-  askLoggerIO = unsafeToPgQueryIO askTxEnv
+  askLoggerIO = getLogger <$> unsafeToPgQueryIO askTxEnv
 
 unsafeToPgQueryIO :: (HasCallStack) => TxM r a -> UnsafePgQueryIO r a
 unsafeToPgQueryIO x = UnsafePgQueryIO $ unsafeUnTxM x

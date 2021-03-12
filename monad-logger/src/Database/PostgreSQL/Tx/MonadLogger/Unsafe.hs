@@ -5,7 +5,7 @@ module Database.PostgreSQL.Tx.MonadLogger.Unsafe where
 
 import Control.Monad.Logger (LoggingT(runLoggingT))
 import Database.PostgreSQL.Tx (TxEnv, TxM, askTxEnv)
-import Database.PostgreSQL.Tx.MonadLogger (Logger)
+import Database.PostgreSQL.Tx.MonadLogger (Logger(Logger))
 import Database.PostgreSQL.Tx.Unsafe (unsafeRunIOInTxM)
 
 -- | Promote a 'LoggingT' over 'IO' to 'TxM'.
@@ -15,5 +15,5 @@ import Database.PostgreSQL.Tx.Unsafe (unsafeRunIOInTxM)
 -- @since 0.2.0.0
 unsafeRunLoggerIOInTxM :: (TxEnv Logger r) => LoggingT IO a -> TxM r a
 unsafeRunLoggerIOInTxM x = do
-  logger <- askTxEnv
+  Logger logger <- askTxEnv
   unsafeRunIOInTxM $ runLoggingT x logger

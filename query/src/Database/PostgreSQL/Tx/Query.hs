@@ -3,18 +3,19 @@
 module Database.PostgreSQL.Tx.Query
   ( PgQueryEnv
   , PgQueryM
-  , Logger
   , module Database.PostgreSQL.Tx.Query
   , module Database.PostgreSQL.Tx.Query.Internal.Reexport
   , module Database.PostgreSQL.Tx.Simple.Connection
+  , module Database.PostgreSQL.Tx.MonadLogger
   ) where
 
 import Control.Exception (Exception)
 import Data.Int (Int64)
 import Database.PostgreSQL.Tx (TxM)
-import Database.PostgreSQL.Tx.Simple.Connection
+import Database.PostgreSQL.Tx.MonadLogger
 import Database.PostgreSQL.Tx.Query.Internal
 import Database.PostgreSQL.Tx.Query.Internal.Reexport
+import Database.PostgreSQL.Tx.Simple.Connection
 import GHC.Stack (HasCallStack)
 import qualified Database.PostgreSQL.Query as Query
 import qualified Database.PostgreSQL.Simple.Transaction as Simple
