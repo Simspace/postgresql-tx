@@ -120,10 +120,12 @@ class Append xs ys where
 instance Append '[] ys where
   type AppendList '[] ys = ys
   append _ ys = ys
+  {-# INLINE append #-}
 
 instance (Append xs ys) => Append (x ': xs) ys where
   type AppendList (x ': xs) ys = x ': AppendList xs ys
   append (x `Cons` xs) ys = x `Cons` append xs ys
+  {-# INLINE append #-}
 
 -- | Construct an 'HEnv' from a 'Generic' structure.
 fromGeneric :: (Generic i, FromGeneric (Rep i) o) => i -> HEnv o
