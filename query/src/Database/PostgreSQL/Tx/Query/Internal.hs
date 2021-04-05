@@ -25,6 +25,7 @@ import Data.Kind (Constraint)
 import Database.PostgreSQL.Tx (TxEnvs, TxM, askTxEnv, mapExceptionTx)
 import Database.PostgreSQL.Tx.MonadLogger (Logger(Logger, getLogger))
 import Database.PostgreSQL.Tx.Query.Internal.Reexport
+import Database.PostgreSQL.Tx.LibPQ.Connection (LibPQConnection)
 import Database.PostgreSQL.Tx.Simple.Connection (PgSimpleConnection(unsafeGetPgSimpleConnection))
 import Database.PostgreSQL.Tx.Unsafe (unsafeMkTxM, unsafeRunIOInTxM, unsafeRunTxM, unsafeUnTxM)
 import GHC.Stack (HasCallStack)
@@ -33,7 +34,13 @@ import qualified Database.PostgreSQL.Tx.Simple.Internal as Tx.Simple.Internal
 -- | Runtime environment needed to run @postgresql-query@ via @postgresql-tx@.
 --
 -- @since 0.2.0.0
-type PgQueryEnv r = (TxEnvs '[PgSimpleConnection, Logger] r) :: Constraint
+type PgQueryEnv r =
+  ( TxEnvs
+      '[ PgSimpleConnection
+       , LibPQConnection
+       , Logger
+       ] r
+  ) :: Constraint
 
 -- | Monad type alias for running @postgresql-query@ via @postgresql-tx@.
 --
