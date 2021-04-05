@@ -1,3 +1,4 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DefaultSignatures #-}
@@ -16,6 +17,8 @@ module Database.PostgreSQL.Tx.HEnv
   ( HEnv(Nil, Cons)
   , Elem
   , NotElem
+  , with
+  , also
   , select
   , singleton
   , fromGeneric
@@ -39,6 +42,24 @@ infixr 2 `Cons`
 -- @since 0.2.0.0
 singleton :: a -> HEnv '[a]
 singleton = (`Cons` Nil)
+
+-- | Given a @using@ function, likely created by chained calls
+-- to 'also', create a new function that is initialized with
+-- an empty 'HEnv'.
+with
+  :: (HEnv '[] -> (HEnv xs -> IO a) -> IO a)
+  -> (HEnv xs -> IO a)
+  -> IO a
+with using action = using Nil action
+
+-- | Chain multiple @using@ functions to create a single
+-- function which can be easily dispatched with 'with'.
+also
+  :: (HEnv ys -> (HEnv zs -> IO a) -> IO a)
+  -> (HEnv xs -> (HEnv ys -> IO a) -> IO a)
+  -> (HEnv xs -> (HEnv zs -> IO a) -> IO a)
+also using1 using0 henv0 action = do
+  using0 henv0 \henv1 -> using1 henv1 action
 
 -- | 'TxEnv' instance for 'HEnv'; selects the @a@ in the 'HEnv'
 -- and makes it available via the runtime environment.

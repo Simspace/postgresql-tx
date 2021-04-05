@@ -117,9 +117,10 @@ type AppEnv =
      ]
 
 withAppEnv :: PG.Simple.Connection -> (AppEnv -> IO a) -> IO a
-withAppEnv simpleConn action = do
-  Tx.Query.usingLoggingT runStderrLoggingT HEnv.Nil \henv0 ->
-    Tx.Query.usingPgSimpleConnection simpleConn henv0 action
+withAppEnv simpleConn =
+  HEnv.with $
+    Tx.Query.usingPgSimpleConnection simpleConn
+      `HEnv.also` Tx.Query.usingLoggingT runStderrLoggingT
 
 demo
   :: Example.PgSimple.Handle AppM
